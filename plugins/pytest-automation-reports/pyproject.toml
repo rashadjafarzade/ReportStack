@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pytest-automation-reports"
+version = "0.1.0"
+description = "pytest plugin for automation-reports platform"
+requires-python = ">=3.9"
+dependencies = [
+    "pytest>=7.0",
+    "requests>=2.28.0",
+]
+
+[project.entry-points.pytest11]
+automation_reports = "pytest_automation_reports.plugin"
+
+[tool.setuptools.packages.find]
+include = ["pytest_automation_reports*"]

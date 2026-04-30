@@ -1,0 +1,32 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.api import launches, test_items, logs, attachments, analyses
+from app.database import engine, Base
+
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(
+    title="Automation Reports",
+    description="Test automation reporting platform",
+    version="1.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(launches.router)
+app.include_router(test_items.router)
+app.include_router(logs.router)
+app.include_router(attachments.router)
+app.include_router(analyses.router)
+
+
+@app.get("/api/v1/health")
+def health_check():
+    return {"status": "ok"}
