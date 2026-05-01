@@ -11,13 +11,12 @@ import { AnalysisPanel } from "../components/AnalysisPanel";
 import { AnalysisBadge } from "../components/AnalysisBadge";
 import { LaunchAnalysisSummaryChart } from "../components/LaunchAnalysisSummary";
 import { format } from "date-fns";
-import { PieChart, Pie, Cell, Legend, Tooltip } from "recharts";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
-const COLORS: Record<string, string> = {
-  PASSED: "#4caf50",
-  FAILED: "#f44336",
-  SKIPPED: "#ff9800",
-  ERROR: "#e91e63",
+const PIE_COLORS: Record<string, string> = {
+  Passed: "#10b981",
+  Failed: "#ef4444",
+  Skipped: "#f59e0b",
 };
 
 type TabType = "error" | "logs" | "screenshots" | "analysis";
@@ -30,6 +29,7 @@ const LaunchDetail: React.FC = () => {
   const [expandedItem, setExpandedItem] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>("error");
   const [itemAnalyses, setItemAnalyses] = useState<Record<number, FailureAnalysis | null>>({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
@@ -38,10 +38,12 @@ const LaunchDetail: React.FC = () => {
 
   useEffect(() => {
     if (!id) return;
-    getTestItems(Number(id), filter || undefined).then((res) => setItems(res.data));
+    setLoading(true);
+    getTestItems(Number(id), filter || undefined)
+      .then((res) => setItems(res.data))
+      .finally(() => setLoading(false));
   }, [id, filter]);
 
-  // Load latest analysis for each failed/error item
   useEffect(() => {
     if (!id || items.length === 0) return;
     const failedItems = items.filter((i) => i.status === "FAILED" || i.status === "ERROR");
@@ -53,27 +55,20 @@ const LaunchDetail: React.FC = () => {
     });
   }, [id, items]);
 
-  if (!launch) return <div>Loading...</div>;
+  if (!launch) {
+    return (
+      <div className="loading-center">
+        <div className="spinner spinner-lg" />
+        <span>Loading launch...</span>
+      </div>
+    );
+  }
 
   const pieData = [
     { name: "Passed", value: launch.passed },
     { name: "Failed", value: launch.failed },
     { name: "Skipped", value: launch.skipped },
   ].filter((d) => d.value > 0);
-
-  const tabStyle = (tab: TabType): React.CSSProperties => ({
-    padding: "6px 16px",
-    fontSize: 13,
-    cursor: "pointer",
-    borderBottom: activeTab === tab ? "2px solid #1976d2" : "2px solid transparent",
-    color: activeTab === tab ? "#1976d2" : "#666",
-    fontWeight: activeTab === tab ? 600 : 400,
-    background: "none",
-    border: "none",
-    borderBottomWidth: 2,
-    borderBottomStyle: "solid",
-    borderBottomColor: activeTab === tab ? "#1976d2" : "transparent",
-  });
 
   const handleRowClick = (item: TestItem) => {
     if (expandedItem === item.id) {
@@ -84,185 +79,239 @@ const LaunchDetail: React.FC = () => {
     }
   };
 
+  const passRate = launch.total > 0 ? ((launch.passed / launch.total) * 100).toFixed(1) : "0";
+
   return (
     <div>
-      <Link to="/" style={{ color: "#1976d2", textDecoration: "none", fontSize: 14 }}>
-        &larr; Back to Launches
-      </Link>
-
-      <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 16 }}>
-        <h1 style={{ margin: 0 }}>{launch.name}</h1>
-        <StatusBadge status={launch.status} />
+      {/* Breadcrumb */}
+      <div className="page-breadcrumb">
+        <Link to="/">Launches</Link>
+        <span className="page-breadcrumb-separator">/</span>
+        <span>{launch.name}</span>
       </div>
 
-      {launch.description && <p style={{ color: "#666" }}>{launch.description}</p>}
-
-      <div style={{ display: "flex", gap: 40, marginTop: 24, marginBottom: 24 }}>
-        <div style={{ flex: 1 }}>
-          <h3>Summary</h3>
-          <StatsBar launch={launch} />
-          <div style={{ marginTop: 16, fontSize: 14, color: "#666" }}>
-            <div>Started: {format(new Date(launch.start_time), "MMM d, yyyy HH:mm:ss")}</div>
-            {launch.end_time && (
-              <div>Finished: {format(new Date(launch.end_time), "MMM d, yyyy HH:mm:ss")}</div>
-            )}
-            <div>Total tests: {launch.total}</div>
+      {/* Page Header */}
+      <div className="page-header">
+        <div className="page-title-row">
+          <div className="flex items-center gap-4">
+            <h1 className="page-title">{launch.name}</h1>
+            <StatusBadge status={launch.status} />
           </div>
         </div>
-        <div>
-          <PieChart width={250} height={200}>
-            <Pie data={pieData} cx={120} cy={100} outerRadius={70} dataKey="value" label>
-              {pieData.map((entry) => (
-                <Cell key={entry.name} fill={COLORS[entry.name.toUpperCase()] || "#9e9e9e"} />
-              ))}
-            </Pie>
-            <Tooltip />
-            <Legend />
-          </PieChart>
+        {launch.description && <p className="page-subtitle">{launch.description}</p>}
+      </div>
+
+      {/* Metric Cards */}
+      <div className="metric-grid">
+        <div className="metric-card">
+          <div className="metric-card-label">Total Tests</div>
+          <div className="metric-card-value">{launch.total}</div>
+        </div>
+        <div className="metric-card">
+          <div className="metric-card-label">Passed</div>
+          <div className="metric-card-value passed">{launch.passed}</div>
+        </div>
+        <div className="metric-card">
+          <div className="metric-card-label">Failed</div>
+          <div className="metric-card-value failed">{launch.failed}</div>
+        </div>
+        <div className="metric-card">
+          <div className="metric-card-label">Pass Rate</div>
+          <div className="metric-card-value" style={{ color: Number(passRate) >= 80 ? "var(--color-passed)" : "var(--color-failed)" }}>
+            {passRate}%
+          </div>
         </div>
       </div>
 
-      <LaunchAnalysisSummaryChart launchId={launch.id} />
-
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-        <h3 style={{ margin: 0 }}>Test Results</h3>
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value as TestStatus | "")}
-          style={{ padding: "4px 8px" }}
-        >
-          <option value="">All</option>
-          <option value="PASSED">Passed</option>
-          <option value="FAILED">Failed</option>
-          <option value="SKIPPED">Skipped</option>
-          <option value="ERROR">Error</option>
-        </select>
+      {/* Summary Row: Stats + Pie */}
+      <div className="flex gap-6 mb-6" style={{ flexWrap: "wrap" }}>
+        <div className="card" style={{ flex: "1 1 400px" }}>
+          <div className="card-header">
+            <h3 className="card-title">Test Distribution</h3>
+          </div>
+          <div className="card-body">
+            <StatsBar launch={launch} />
+            <div className="mt-4 flex flex-col gap-1 text-sm text-secondary">
+              <div>Started: {format(new Date(launch.start_time), "MMM d, yyyy HH:mm:ss")}</div>
+              {launch.end_time && (
+                <div>Finished: {format(new Date(launch.end_time), "MMM d, yyyy HH:mm:ss")}</div>
+              )}
+              <div>Skipped: {launch.skipped}</div>
+            </div>
+          </div>
+        </div>
+        <div className="card" style={{ flex: "0 0 260px" }}>
+          <div className="card-body" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <ResponsiveContainer width={220} height={180}>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={70}
+                  innerRadius={40}
+                  dataKey="value"
+                  paddingAngle={2}
+                  stroke="none"
+                >
+                  {pieData.map((entry) => (
+                    <Cell key={entry.name} fill={PIE_COLORS[entry.name] || "#9e9e9e"} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--color-surface)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "var(--radius-md)",
+                    fontSize: "var(--text-sm)",
+                    boxShadow: "var(--shadow-md)",
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
 
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr style={{ borderBottom: "2px solid #eee", textAlign: "left" }}>
-            <th style={{ padding: "8px 12px" }}>Test Name</th>
-            <th style={{ padding: "8px 12px" }}>Suite</th>
-            <th style={{ padding: "8px 12px" }}>Status</th>
-            <th style={{ padding: "8px 12px" }}>Defect</th>
-            <th style={{ padding: "8px 12px" }}>Duration</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item) => (
-            <React.Fragment key={item.id}>
-              <tr
-                style={{
-                  borderBottom: "1px solid #f0f0f0",
-                  cursor: "pointer",
-                  backgroundColor: expandedItem === item.id ? "#f9f9f9" : "transparent",
-                }}
-                onClick={() => handleRowClick(item)}
-              >
-                <td style={{ padding: "10px 12px" }}>
-                  {item.name}
-                  <span style={{ color: "#999", marginLeft: 6 }}>
-                    {expandedItem === item.id ? "\u25B2" : "\u25BC"}
-                  </span>
-                </td>
-                <td style={{ padding: "10px 12px", color: "#666", fontSize: 13 }}>
-                  {item.suite || "-"}
-                </td>
-                <td style={{ padding: "10px 12px" }}>
-                  <StatusBadge status={item.status} />
-                </td>
-                <td style={{ padding: "10px 12px" }}>
-                  {itemAnalyses[item.id] && (
-                    <AnalysisBadge
-                      defectType={itemAnalyses[item.id]!.defect_type}
-                      confidence={itemAnalyses[item.id]!.confidence}
-                    />
-                  )}
-                </td>
-                <td style={{ padding: "10px 12px", fontSize: 13 }}>
-                  {item.duration_ms != null ? `${item.duration_ms}ms` : "-"}
-                </td>
+      {/* AI Analysis Summary */}
+      <LaunchAnalysisSummaryChart launchId={launch.id} />
+
+      {/* Test Results Table */}
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title">Test Results</h3>
+          <select
+            className="select"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as TestStatus | "")}
+          >
+            <option value="">All Statuses</option>
+            <option value="PASSED">Passed</option>
+            <option value="FAILED">Failed</option>
+            <option value="SKIPPED">Skipped</option>
+            <option value="ERROR">Error</option>
+          </select>
+        </div>
+
+        {loading ? (
+          <div className="loading-center">
+            <div className="spinner spinner-lg" />
+          </div>
+        ) : items.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-state-icon">&#128269;</div>
+            <div className="empty-state-title">No Test Items</div>
+            <div className="empty-state-description">
+              No tests match the selected filter.
+            </div>
+          </div>
+        ) : (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Test Name</th>
+                <th style={{ width: 120 }}>Suite</th>
+                <th style={{ width: 100 }}>Status</th>
+                <th style={{ width: 130 }}>Defect</th>
+                <th style={{ width: 90 }}>Duration</th>
               </tr>
-              {expandedItem === item.id && (
-                <tr>
-                  <td colSpan={5} style={{ padding: 0 }}>
-                    <div style={{ borderBottom: "1px solid #eee" }}>
-                      <div style={{ display: "flex", borderBottom: "1px solid #eee", padding: "0 12px" }}>
-                        {item.error_message && (
-                          <button style={tabStyle("error")} onClick={() => setActiveTab("error")}>
-                            Error
-                          </button>
-                        )}
-                        <button style={tabStyle("logs")} onClick={() => setActiveTab("logs")}>
-                          Logs
-                        </button>
-                        <button style={tabStyle("screenshots")} onClick={() => setActiveTab("screenshots")}>
-                          Screenshots
-                        </button>
-                        {(item.status === "FAILED" || item.status === "ERROR") && (
-                          <button style={tabStyle("analysis")} onClick={() => setActiveTab("analysis")}>
-                            AI Analysis
-                          </button>
-                        )}
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <React.Fragment key={item.id}>
+                  <tr
+                    className={`row-clickable ${expandedItem === item.id ? "row-expanded" : ""}`}
+                    onClick={() => handleRowClick(item)}
+                  >
+                    <td>
+                      <div className="flex items-center">
+                        <span className={`row-expand-icon ${expandedItem === item.id ? "expanded" : ""}`}>
+                          &#9654;
+                        </span>
+                        <span className="cell-name">{item.name}</span>
                       </div>
-                      <div style={{ padding: "12px 24px" }}>
-                        {activeTab === "error" && item.error_message && (
-                          <div style={{ backgroundColor: "#fff5f5", padding: 12, borderRadius: 4 }}>
-                            <div style={{ fontWeight: 600, color: "#d32f2f", marginBottom: 4 }}>
-                              Error Message:
-                            </div>
-                            <pre style={{ margin: 0, whiteSpace: "pre-wrap", fontSize: 13 }}>
-                              {item.error_message}
-                            </pre>
-                            {item.stack_trace && (
-                              <>
-                                <div
-                                  style={{
-                                    fontWeight: 600,
-                                    color: "#d32f2f",
-                                    marginTop: 12,
-                                    marginBottom: 4,
-                                  }}
-                                >
-                                  Stack Trace:
-                                </div>
-                                <pre
-                                  style={{
-                                    margin: 0,
-                                    whiteSpace: "pre-wrap",
-                                    fontSize: 12,
-                                    color: "#666",
-                                  }}
-                                >
-                                  {item.stack_trace}
-                                </pre>
-                              </>
+                    </td>
+                    <td className="cell-secondary">{item.suite || "-"}</td>
+                    <td><StatusBadge status={item.status} /></td>
+                    <td>
+                      {itemAnalyses[item.id] && (
+                        <AnalysisBadge
+                          defectType={itemAnalyses[item.id]!.defect_type}
+                          confidence={itemAnalyses[item.id]!.confidence}
+                        />
+                      )}
+                    </td>
+                    <td className="cell-mono cell-secondary">
+                      {item.duration_ms != null ? `${item.duration_ms}ms` : "-"}
+                    </td>
+                  </tr>
+                  {expandedItem === item.id && (
+                    <tr>
+                      <td colSpan={5} style={{ padding: 0 }}>
+                        <div className="animate-slide-down">
+                          <div className="tabs">
+                            {item.error_message && (
+                              <button
+                                className={`tab ${activeTab === "error" ? "active" : ""}`}
+                                onClick={() => setActiveTab("error")}
+                              >
+                                Error
+                              </button>
+                            )}
+                            <button
+                              className={`tab ${activeTab === "logs" ? "active" : ""}`}
+                              onClick={() => setActiveTab("logs")}
+                            >
+                              Logs
+                            </button>
+                            <button
+                              className={`tab ${activeTab === "screenshots" ? "active" : ""}`}
+                              onClick={() => setActiveTab("screenshots")}
+                            >
+                              Screenshots
+                            </button>
+                            {(item.status === "FAILED" || item.status === "ERROR") && (
+                              <button
+                                className={`tab ${activeTab === "analysis" ? "active" : ""}`}
+                                onClick={() => setActiveTab("analysis")}
+                              >
+                                AI Analysis
+                              </button>
                             )}
                           </div>
-                        )}
-                        {activeTab === "logs" && (
-                          <LogViewer launchId={launch.id} itemId={item.id} />
-                        )}
-                        {activeTab === "screenshots" && (
-                          <ScreenshotViewer launchId={launch.id} itemId={item.id} />
-                        )}
-                        {activeTab === "analysis" && (
-                          <AnalysisPanel launchId={launch.id} itemId={item.id} />
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </React.Fragment>
-          ))}
-        </tbody>
-      </table>
-
-      {items.length === 0 && (
-        <div style={{ textAlign: "center", padding: 40, color: "#999" }}>No test items found.</div>
-      )}
+                          <div className="tab-content">
+                            {activeTab === "error" && item.error_message && (
+                              <div className="error-panel">
+                                <div className="error-panel-label">Error Message</div>
+                                <pre>{item.error_message}</pre>
+                                {item.stack_trace && (
+                                  <div className="stack-trace">
+                                    <div className="error-panel-label">Stack Trace</div>
+                                    <pre>{item.stack_trace}</pre>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {activeTab === "logs" && (
+                              <LogViewer launchId={launch.id} itemId={item.id} />
+                            )}
+                            {activeTab === "screenshots" && (
+                              <ScreenshotViewer launchId={launch.id} itemId={item.id} />
+                            )}
+                            {activeTab === "analysis" && (
+                              <AnalysisPanel launchId={launch.id} itemId={item.id} />
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 };

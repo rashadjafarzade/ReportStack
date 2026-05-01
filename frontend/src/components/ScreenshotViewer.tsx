@@ -21,60 +21,47 @@ export const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({ launchId, it
 
   const screenshots = attachments.filter((a) => a.attachment_type === "SCREENSHOT");
 
-  if (loading) return <div style={{ color: "#999", padding: 12 }}>Loading...</div>;
-  if (screenshots.length === 0) return <div style={{ color: "#999", padding: 12 }}>No screenshots.</div>;
+  if (loading) {
+    return (
+      <div className="loading-center" style={{ padding: "var(--space-6)" }}>
+        <div className="spinner" />
+      </div>
+    );
+  }
+
+  if (screenshots.length === 0) {
+    return (
+      <div className="empty-state" style={{ padding: "var(--space-8)" }}>
+        <div className="empty-state-icon">&#128247;</div>
+        <div className="empty-state-title">No Screenshots</div>
+        <div className="empty-state-description">
+          Screenshots captured during test execution will appear here.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+      <div className="screenshot-grid">
         {screenshots.map((s) => {
           const url = getAttachmentUrl(s.id);
           return (
             <div
               key={s.id}
-              style={{
-                border: "1px solid #ddd",
-                borderRadius: 4,
-                padding: 4,
-                cursor: "pointer",
-              }}
+              className="screenshot-thumb"
               onClick={() => setSelectedImage(url)}
             >
-              <img
-                src={url}
-                alt={s.file_name}
-                style={{ width: 160, height: 100, objectFit: "cover", borderRadius: 2 }}
-              />
-              <div style={{ fontSize: 11, color: "#666", marginTop: 4, textAlign: "center" }}>
-                {s.file_name}
-              </div>
+              <img src={url} alt={s.file_name} />
+              <div className="screenshot-thumb-label">{s.file_name}</div>
             </div>
           );
         })}
       </div>
 
       {selectedImage && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            backgroundColor: "rgba(0,0,0,0.85)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            cursor: "pointer",
-          }}
-          onClick={() => setSelectedImage(null)}
-        >
-          <img
-            src={selectedImage}
-            alt="Full size"
-            style={{ maxWidth: "90vw", maxHeight: "90vh", borderRadius: 4 }}
-          />
+        <div className="lightbox-overlay" onClick={() => setSelectedImage(null)}>
+          <img src={selectedImage} alt="Full size" />
         </div>
       )}
     </div>

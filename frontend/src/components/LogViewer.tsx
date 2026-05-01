@@ -3,14 +3,6 @@ import { getTestLogs } from "../api/logs";
 import { TestLog, LogLevel } from "../types";
 import { format } from "date-fns";
 
-const LEVEL_COLORS: Record<LogLevel, string> = {
-  TRACE: "#9e9e9e",
-  DEBUG: "#2196f3",
-  INFO: "#4caf50",
-  WARN: "#ff9800",
-  ERROR: "#f44336",
-};
-
 interface LogViewerProps {
   launchId: number;
   itemId: number;
@@ -32,12 +24,13 @@ export const LogViewer: React.FC<LogViewerProps> = ({ launchId, itemId }) => {
   }, [launchId, itemId, levelFilter]);
 
   return (
-    <div>
-      <div style={{ marginBottom: 8 }}>
+    <div className="log-viewer">
+      <div className="log-viewer-toolbar">
         <select
+          className="select"
           value={levelFilter}
           onChange={(e) => setLevelFilter(e.target.value as LogLevel | "")}
-          style={{ padding: "4px 8px", fontSize: 12 }}
+          style={{ background: "#21262d", color: "#c9d1d9", borderColor: "#30363d", fontSize: "var(--text-xs)" }}
         >
           <option value="">All Levels</option>
           <option value="TRACE">TRACE</option>
@@ -46,43 +39,33 @@ export const LogViewer: React.FC<LogViewerProps> = ({ launchId, itemId }) => {
           <option value="WARN">WARN</option>
           <option value="ERROR">ERROR</option>
         </select>
+        <span style={{ fontSize: "var(--text-xs)", color: "#484f58" }}>
+          {logs.length} entries
+        </span>
       </div>
-      <div
-        style={{
-          maxHeight: 400,
-          overflow: "auto",
-          backgroundColor: "#1e1e1e",
-          borderRadius: 4,
-          padding: 12,
-          fontFamily: "monospace",
-          fontSize: 12,
-          lineHeight: 1.6,
-        }}
-      >
-        {loading && <div style={{ color: "#999" }}>Loading logs...</div>}
+      <div className="log-viewer-body">
+        {loading && (
+          <div className="loading-center" style={{ padding: "var(--space-6)" }}>
+            <div className="spinner" style={{ borderColor: "#30363d", borderTopColor: "#58a6ff" }} />
+          </div>
+        )}
         {!loading && logs.length === 0 && (
-          <div style={{ color: "#999" }}>No logs found.</div>
+          <div style={{ textAlign: "center", padding: "var(--space-8)", color: "#484f58" }}>
+            No logs found
+          </div>
         )}
         {logs.map((log) => (
-          <div key={log.id} style={{ display: "flex", gap: 8 }}>
-            <span style={{ color: "#888", whiteSpace: "nowrap" }}>
+          <div key={log.id} className="log-line">
+            <span className="log-timestamp">
               {format(new Date(log.timestamp), "HH:mm:ss.SSS")}
             </span>
-            <span
-              style={{
-                color: LEVEL_COLORS[log.level],
-                fontWeight: 600,
-                minWidth: 44,
-              }}
-            >
+            <span className={`log-level ${log.level.toLowerCase()}`}>
               {log.level}
             </span>
             {log.step_name && (
-              <span style={{ color: "#b39ddb" }}>[{log.step_name}]</span>
+              <span className="log-step">[{log.step_name}]</span>
             )}
-            <span style={{ color: "#e0e0e0", wordBreak: "break-all" }}>
-              {log.message}
-            </span>
+            <span className="log-message">{log.message}</span>
           </div>
         ))}
       </div>

@@ -16,3 +16,5 @@ frontend/build/
 *.swo
 
 /data/
+bot/chat_logs/
+bot/venv/

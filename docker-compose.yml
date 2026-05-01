@@ -36,6 +36,19 @@ services:
       - backend
     restart: unless-stopped
 
+  bot:
+    build: ./bot
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-20250514}
+      AR_BACKEND_URL: http://backend:8000/api/v1
+      AR_FRONTEND_URL: ${AR_FRONTEND_URL:-http://localhost:3000}
+      ALLOWED_USER_IDS: ${ALLOWED_USER_IDS:-}
+    depends_on:
+      - backend
+    restart: unless-stopped
+
   ollama:
     image: ollama/ollama:latest
     ports:
@@ -43,13 +56,6 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     restart: unless-stopped
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
 
 volumes:
   pgdata:
