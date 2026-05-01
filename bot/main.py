@@ -13,6 +13,7 @@ from handlers import (
     launch_command,
     failures_command,
     analyze_command,
+    team_command,
     clear_command,
     handle_message,
 )
@@ -44,6 +45,7 @@ def main():
     app.add_handler(CommandHandler("launch", launch_command))
     app.add_handler(CommandHandler("failures", failures_command))
     app.add_handler(CommandHandler("analyze", analyze_command))
+    app.add_handler(CommandHandler("team", team_command))
     app.add_handler(CommandHandler("clear", clear_command))
 
     # Free-text messages go to the Claude agent

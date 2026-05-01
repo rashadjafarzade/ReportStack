@@ -59,10 +59,13 @@ React Frontend (:3000/nginx) ↔ Backend → Ollama (:11434)
 Attachments stored on disk at /data/attachments
 
 ### Data Model
-Launch (1→N) TestItem (1→N) TestLog, Attachment, FailureAnalysis
-Launch (1→N) Attachment (launch-level)
+Launch (1→N) TestItem (1→N) TestLog, Attachment, FailureAnalysis, Comment, Defect
+Launch (1→N) Attachment (launch-level), Comment (launch-level)
+Dashboard (1→N) Widget
+Member (standalone — name, email, role: ADMIN/MANAGER/MEMBER/VIEWER)
+ProjectSettings (singleton — project config)
 
-Enums: LaunchStatus (IN_PROGRESS/PASSED/FAILED/STOPPED), TestStatus (PASSED/FAILED/SKIPPED/ERROR), DefectType (PRODUCT_BUG/AUTOMATION_BUG/SYSTEM_ISSUE/NO_DEFECT/TO_INVESTIGATE)
+Enums: LaunchStatus (IN_PROGRESS/PASSED/FAILED/STOPPED), TestStatus (PASSED/FAILED/SKIPPED/ERROR), DefectType (PRODUCT_BUG/AUTOMATION_BUG/SYSTEM_ISSUE/NO_DEFECT/TO_INVESTIGATE), DefectStatus (OPEN/IN_PROGRESS/FIXED/WONT_FIX/DUPLICATE), MemberRole (ADMIN/MANAGER/MEMBER/VIEWER)
 
 ### API Endpoints (all /api/v1)
 Launches: POST/GET /launches/, GET/DELETE /launches/{id}, PUT /launches/{id}/finish
@@ -70,9 +73,25 @@ Items: POST /launches/{id}/items/, POST /items/batch, GET /items/
 Logs: POST /items/{id}/logs/, POST /logs/batch, GET /logs/
 Attachments: POST upload (multipart 20MB), GET /attachments/{id}/file, DELETE
 Analysis: POST /launches/{id}/analyze (202 async), GET /analysis-summary, PUT override
+Comments: POST/GET /launches/{id}/items/{item_id}/comments/, POST/GET /launches/{id}/comments/, PUT/DELETE /comments/{id}
+Defects: POST/GET /launches/{id}/items/{item_id}/defects/, PUT/DELETE /defects/{id}
+Members: GET/POST /members/, PUT/DELETE /members/{id}
+Settings: GET/PUT /settings/
+Dashboards: GET/POST /dashboards/, GET/PUT/DELETE /dashboards/{id}, POST/DELETE /dashboards/{id}/widgets/
+Test History: GET /items/history?name={test_name}&limit=20
+
+### Frontend Pages
+- *Dashboard* (`/`) — Overview metrics, pass rate trends, recent launches
+- *Launches* (`/launches`) — Launch list with filters, click to drill into detail
+- *Launch Detail* (`/launches/:id`) — Metrics, test table with inline expand, DefectSelector right rail for quick triage
+- *Test Detail* (`/launches/:id/items/:itemId`) — Full test view: stack trace, logs with inline attachments, Make Decision modal, HistoryStrip across launches
+- *Dashboards* (`/dashboards`) — Custom dashboard CRUD with widget cards
+- *Members* (`/members`) — Team member table with role management, permission matrix, invite modal
+- *Settings* (`/settings`) — 9-tab settings (General, Integrations, Notifications, Defect types, Log types, Analyzer, Pattern-analysis, Demo data, Quality gates)
+- *Profile* (`/profile`) — API key management, config examples (Python/JS/curl), preferences
 
 ### Frontend Design System
-CSS tokens in design-tokens.css. Component classes in components.css. Sidebar layout. Metric cards, data tables, tabs, badges, log viewer, screenshot gallery, analysis panel.
+CSS tokens in design-tokens.css. Component classes in components.css. Extra page styles in extras.css. Settings styles in project-settings.css. Dark sidebar layout with navigation + project sections. Metric cards, data tables, tabs, badges, log viewer, screenshot gallery, analysis panel, DefectSelector, HistoryStrip.
 
 ### pytest Plugin
 Install: pip install -e plugins/pytest-automation-reports/
@@ -87,10 +106,8 @@ python3 backend/seed_data.py (demo data)
 ### What's Not Built Yet
 - Authentication/authorization
 - WebSocket real-time updates
-- Test history/trends page
 - Launch comparison
-- Email/Slack notifications
-- Data retention policies
+- Email/Slack notifications (UI ready, backend not wired)
 - Unit/integration tests
 
 ## Framework Integration & CI/CD Knowledge
@@ -162,6 +179,58 @@ TOOLS = [
             "required": ["launch_id"],
         },
     },
+    {
+        "name": "get_test_history",
+        "description": "Get history of a specific test across all launches (pass/fail trend). Useful for finding flaky tests.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "test_name": {"type": "string", "description": "Exact test name to look up"},
+                "limit": {"type": "integer", "description": "Max entries to return", "default": 20},
+            },
+            "required": ["test_name"],
+        },
+    },
+    {
+        "name": "get_test_logs",
+        "description": "Get log entries for a specific test item. Can filter by level (ERROR, WARN, INFO, DEBUG, TRACE).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "launch_id": {"type": "integer", "description": "Launch ID"},
+                "item_id": {"type": "integer", "description": "Test item ID"},
+                "level": {"type": "string", "description": "Filter by log level (ERROR/WARN/INFO/DEBUG/TRACE)"},
+            },
+            "required": ["launch_id", "item_id"],
+        },
+    },
+    {
+        "name": "get_item_defects",
+        "description": "Get defects linked to a specific test item",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "launch_id": {"type": "integer", "description": "Launch ID"},
+                "item_id": {"type": "integer", "description": "Test item ID"},
+            },
+            "required": ["launch_id", "item_id"],
+        },
+    },
+    {
+        "name": "get_dashboards",
+        "description": "List all custom dashboards",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "get_members",
+        "description": "List all project team members with their roles",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "get_settings",
+        "description": "Get current project settings (name, AI config, retention, etc.)",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
 ]
 
 
@@ -194,6 +263,34 @@ async def execute_tool(name: str, args: dict) -> str:
 
         elif name == "trigger_analysis":
             result = await backend.trigger_analysis(args["launch_id"])
+            return json.dumps(result)
+
+        elif name == "get_test_history":
+            result = await backend.get_test_history(
+                args["test_name"], args.get("limit", 20)
+            )
+            return json.dumps(result)
+
+        elif name == "get_test_logs":
+            result = await backend.get_test_logs(
+                args["launch_id"], args["item_id"], args.get("level")
+            )
+            return json.dumps(result)
+
+        elif name == "get_item_defects":
+            result = await backend.get_item_defects(args["launch_id"], args["item_id"])
+            return json.dumps(result)
+
+        elif name == "get_dashboards":
+            result = await backend.get_dashboards()
+            return json.dumps(result)
+
+        elif name == "get_members":
+            result = await backend.get_members()
+            return json.dumps(result)
+
+        elif name == "get_settings":
+            result = await backend.get_settings()
             return json.dumps(result)
 
         else:
