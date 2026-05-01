@@ -71,6 +71,60 @@
 .sidebar-nav {
   padding: 0 var(--space-3);
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.sidebar-profile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  margin: 0 var(--space-2) var(--space-2);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  text-decoration: none;
+  color: var(--color-sidebar-text);
+}
+.sidebar-profile:hover, .sidebar-profile.active {
+  background: var(--color-sidebar-hover);
+  color: var(--color-sidebar-text-active);
+}
+.sidebar-profile-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.sidebar-profile-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.sidebar-profile-name {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--color-sidebar-text-active);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar-profile-role {
+  font-size: var(--text-xs);
+  color: var(--color-sidebar-text);
+}
+.sidebar-profile-chevron {
+  color: var(--color-sidebar-text);
+  flex-shrink: 0;
 }
 
 .sidebar-link {
@@ -124,6 +178,7 @@
 .sidebar-footer {
   padding: var(--space-4) var(--space-5);
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
 }
 
 .sidebar-version {

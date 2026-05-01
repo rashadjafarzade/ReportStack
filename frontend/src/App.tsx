@@ -5,8 +5,11 @@ import LaunchList from "./pages/LaunchList";
 import LaunchDetail from "./pages/LaunchDetail";
 import Members from "./pages/Members";
 import Settings from "./pages/Settings";
+import TestDetail from "./pages/TestDetail";
+import Profile from "./pages/Profile";
 import "./styles/design-tokens.css";
 import "./styles/components.css";
+import "./styles/extras.css";
 import "./index.css";
 import "./App.css";
 
@@ -100,7 +103,17 @@ const Sidebar: React.FC = () => {
         </a>
       </nav>
       <div className="sidebar-footer">
-        <div className="sidebar-version">v1.0.0</div>
+        <NavLink to="/profile" className={({ isActive }) => `sidebar-profile ${isActive ? "active" : ""}`} style={{ textDecoration: "none" }}>
+          <span className="sidebar-profile-avatar">JD</span>
+          <span className="sidebar-profile-meta">
+            <span className="sidebar-profile-name">Jane Doe</span>
+            <span className="sidebar-profile-role">Project Admin</span>
+          </span>
+          <svg className="sidebar-profile-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </NavLink>
+        <div className="sidebar-version">v1.0.0 · ReportStack</div>
       </div>
     </aside>
   );
@@ -117,8 +130,10 @@ function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/launches" element={<LaunchList />} />
               <Route path="/launches/:id" element={<LaunchDetail />} />
+              <Route path="/launches/:id/items/:itemId" element={<TestDetail />} />
               <Route path="/members" element={<Members />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/profile" element={<Profile />} />
             </Routes>
           </div>
         </main>
