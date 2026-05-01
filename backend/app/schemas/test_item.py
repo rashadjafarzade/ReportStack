@@ -32,3 +32,15 @@ class TestItemResponse(BaseModel):
     end_time: Optional[datetime]
 
     model_config = {"from_attributes": True}
+
+
+class TestHistoryEntry(BaseModel):
+    id: int
+    launch_id: int
+    launch_name: str
+    launch_number: int
+    status: TestStatus
+    duration_ms: Optional[int]
+    error_message: Optional[str]
+    defect_type: Optional[str] = None
+    start_time: datetime

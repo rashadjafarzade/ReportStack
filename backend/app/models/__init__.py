@@ -7,5 +7,6 @@ from app.models.comment import Comment
 from app.models.defect import Defect
 from app.models.member import Member
 from app.models.project_settings import ProjectSettings
+from app.models.dashboard import Dashboard, Widget
 
-__all__ = ["Launch", "TestItem", "TestLog", "Attachment", "FailureAnalysis", "Comment", "Defect", "Member", "ProjectSettings"]
+__all__ = ["Launch", "TestItem", "TestLog", "Attachment", "FailureAnalysis", "Comment", "Defect", "Member", "ProjectSettings", "Dashboard", "Widget"]

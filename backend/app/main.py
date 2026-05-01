@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import launches, test_items, logs, attachments, analyses, comments, defects, members, project_settings
+from app.api import launches, test_items, logs, attachments, analyses, comments, defects, members, project_settings, dashboards, test_history
 from app.database import engine, Base
 
 Base.metadata.create_all(bind=engine)
@@ -29,6 +29,8 @@ app.include_router(comments.router)
 app.include_router(defects.router)
 app.include_router(members.router)
 app.include_router(project_settings.router)
+app.include_router(dashboards.router)
+app.include_router(test_history.router)
 
 
 @app.get("/api/v1/health")
