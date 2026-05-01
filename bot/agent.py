@@ -10,7 +10,16 @@ from backend_client import backend
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """You are the CEO Agent for the "Automation Reports" platform — a self-hosted test automation reporting system (similar to ReportPortal). You communicate through Telegram.
+# Load skill.md for framework integration knowledge
+_SKILL_PATH = os.path.join(os.path.dirname(__file__), "skill.md")
+try:
+    with open(_SKILL_PATH, "r") as _f:
+        _SKILL_CONTENT = _f.read()
+except FileNotFoundError:
+    _SKILL_CONTENT = ""
+    logger.warning("skill.md not found at %s", _SKILL_PATH)
+
+SYSTEM_PROMPT = """You are the CEO Agent for the "Automation Reports" platform (ReportStack) — a self-hosted test automation reporting system (similar to ReportPortal). You communicate through Telegram.
 
 ## Your Role
 You are the project's intelligent assistant. You know every file, every API endpoint, every architectural decision. You can:
@@ -82,7 +91,13 @@ python3 backend/seed_data.py (demo data)
 - Launch comparison
 - Email/Slack notifications
 - Data retention policies
-- Unit/integration tests"""
+- Unit/integration tests
+
+## Framework Integration Knowledge
+
+You have deep knowledge of how to create test framework integrations for ReportStack. When users ask about integrating their test framework (TestNG, JUnit, Jest, Playwright, Cypress, Robot Framework, etc.), use this knowledge:
+
+""" + _SKILL_CONTENT
 
 # Define tools that Claude can call
 TOOLS = [
