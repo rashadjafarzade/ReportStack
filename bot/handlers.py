@@ -39,6 +39,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/launch `<id>` — Launch details\n"
         "/failures `<launch_id>` — Failed tests\n"
         "/analyze `<launch_id>` — Trigger AI analysis\n"
+        "/team — List team members\n"
         "/clear — Reset conversation history\n\n"
         "Or just ask me anything in plain text!",
         parse_mode=ParseMode.MARKDOWN,
@@ -233,6 +234,29 @@ async def analyze_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     except Exception as e:
         await update.message.reply_text(f"❌ Error triggering analysis: `{e}`", parse_mode=ParseMode.MARKDOWN)
+
+
+async def team_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_authorized(update.effective_user.id):
+        return
+
+    await update.message.chat.send_action(ChatAction.TYPING)
+    try:
+        members = await backend.get_members()
+        if not members:
+            await update.message.reply_text("No team members found.")
+            return
+
+        role_emoji = {"ADMIN": "👑", "MANAGER": "🔧", "MEMBER": "👤", "VIEWER": "👁"}
+        lines = [f"👥 *Team Members* ({len(members)} total)\n"]
+        for m in members:
+            emoji = role_emoji.get(m["role"], "👤")
+            lines.append(f"{emoji} *{m['name']}* — {m['role']}\n    `{m['email']}`")
+
+        lines.append(f"\n🔗 [Manage Team]({AR_FRONTEND_URL}/members)")
+        await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: `{e}`", parse_mode=ParseMode.MARKDOWN)
 
 
 async def clear_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
