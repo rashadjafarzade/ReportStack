@@ -209,6 +209,7 @@ const TestsTab: React.FC<{
   loading: boolean;
   onDefectChange: () => void;
 }> = ({ items, analyses, launchId, statusFilter, setStatusFilter, loading, onDefectChange }) => {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [suiteFilter, setSuiteFilter] = useState("ALL");
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
@@ -284,16 +285,16 @@ const TestsTab: React.FC<{
               ].filter(Boolean).join(" ");
               return (
                 <React.Fragment key={t.id}>
-                  <tr className={rowCls} onClick={() => toggle(t.id)}>
+                  <tr className={rowCls} onClick={() => navigate(`/launches/${launchId}/items/${t.id}`)}>
                     <td>
                       <div className="h-stack">
-                        <span className={`row-expand-icon ${isExpanded ? "expanded" : ""}`}>
+                        <span className={`row-expand-icon ${isExpanded ? "expanded" : ""}`} onClick={e => { e.stopPropagation(); toggle(t.id); }}>
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
                         </span>
                         <StatusIcon status={t.status} />
                       </div>
                     </td>
-                    <td><Link to={`/launches/${launchId}/items/${t.id}`} className="test-name" onClick={e => e.stopPropagation()}>{t.name}</Link></td>
+                    <td><span className="test-name">{t.name}</span></td>
                     <td>{t.suite ? <span className="suite-pill">{t.suite}</span> : "-"}</td>
                     <td className="cell-mono cell-secondary">{fmtDuration(t.duration_ms)}</td>
                     <td>
