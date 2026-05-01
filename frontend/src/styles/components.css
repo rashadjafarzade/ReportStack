@@ -460,7 +460,26 @@
 .badge-error .badge-dot { background: var(--color-error); }
 
 .badge-in-progress { background: var(--color-in-progress-bg); color: #1e40af; }
-.badge-in-progress .badge-dot { background: var(--color-in-progress); }
+.badge-in-progress .badge-dot { background: var(--color-in-progress); animation: pulse-dot 1.5s ease-in-out infinite; }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.4); }
+}
+
+.badge-live {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 8px; border-radius: var(--radius-full);
+  background: #fee2e2; color: #dc2626;
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.badge-live::before {
+  content: "";
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #dc2626;
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
 
 .badge-stopped { background: #f3f4f6; color: #374151; }
 .badge-stopped .badge-dot { background: var(--color-stopped); }

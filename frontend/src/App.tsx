@@ -8,6 +8,7 @@ import Settings from "./pages/Settings";
 import TestDetail from "./pages/TestDetail";
 import Profile from "./pages/Profile";
 import Dashboards from "./pages/Dashboards";
+import Trends from "./pages/Trends";
 import "./styles/design-tokens.css";
 import "./styles/components.css";
 import "./styles/extras.css";
@@ -67,6 +68,17 @@ const Sidebar: React.FC = () => {
             </svg>
           </SidebarIcon>
           Dashboards
+        </NavLink>
+        <NavLink
+          to="/trends"
+          className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
+        >
+          <SidebarIcon>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+            </svg>
+          </SidebarIcon>
+          Trends
         </NavLink>
 
         <div className="sidebar-section-label">Project</div>
@@ -149,6 +161,7 @@ function App() {
               <Route path="/settings" element={<Settings />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/dashboards" element={<Dashboards />} />
+              <Route path="/trends" element={<Trends />} />
             </Routes>
           </div>
         </main>

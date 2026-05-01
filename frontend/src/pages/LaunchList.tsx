@@ -23,6 +23,19 @@ const LaunchList: React.FC = () => {
       .finally(() => setLoading(false));
   }, [page]);
 
+  // Poll when any launch is IN_PROGRESS
+  const hasInProgress = launches.some(l => l.status === "IN_PROGRESS");
+  useEffect(() => {
+    if (!hasInProgress) return;
+    const interval = setInterval(() => {
+      getLaunches(page, pageSize).then(res => {
+        setLaunches(res.data.items);
+        setTotal(res.data.total);
+      });
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [hasInProgress, page]);
+
   const totalPages = Math.ceil(total / pageSize);
 
   // Aggregate stats

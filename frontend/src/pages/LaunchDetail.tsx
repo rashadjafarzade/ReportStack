@@ -587,6 +587,16 @@ const LaunchDetail: React.FC = () => {
 
   useEffect(() => { loadAnalyses(); }, [items]);
 
+  // Poll for live updates when launch is IN_PROGRESS
+  useEffect(() => {
+    if (!id || launch?.status !== "IN_PROGRESS") return;
+    const interval = setInterval(() => {
+      getLaunch(Number(id)).then(res => setLaunch(res.data));
+      getTestItems(Number(id)).then(res => setItems(res.data));
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [id, launch?.status]);
+
   if (!launch) {
     return <div className="loading-center"><div className="spinner spinner-lg" /><span>Loading launch...</span></div>;
   }
@@ -622,6 +632,7 @@ const LaunchDetail: React.FC = () => {
           <div className="detail-title-line">
             <h1 className="detail-title">Launch #{launch.id}: {launch.name}</h1>
             <StatusBadge status={launch.status} />
+            {launch.status === "IN_PROGRESS" && <span className="badge-live">LIVE</span>}
           </div>
           {launch.description && <p className="detail-description">{launch.description}</p>}
           <div className="detail-meta-row">
