@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from "react";
+import { getSettings, updateSettings, generateDemoData } from "../api/settings";
 import "../styles/project-settings.css";
 
 // ===== Tab definitions =====
@@ -419,8 +420,7 @@ const RuleModal: React.FC<{
   );
 };
 
-const NotificationsTab: React.FC = () => {
-  const [allOn, setAllOn] = useState(true);
+const NotificationsTab: React.FC<{ allOn: boolean; onToggleAll: (v: boolean) => void }> = ({ allOn, onToggleAll }) => {
   const [channels, setChannels] = useState<Record<string, { on: boolean; rules: NotificationRule[] }>>({
     email: { on: true, rules: [] },
     slack: { on: false, rules: [] },
@@ -448,7 +448,7 @@ const NotificationsTab: React.FC = () => {
           <div className="ps-master-toggle-title">All notifications</div>
           <div className="ps-master-toggle-desc">Turn off to stop all notifications. When on, notifications are sent only through the channels enabled below.</div>
         </div>
-        <span className={`ps-switch ${allOn ? "on" : ""}`} onClick={() => setAllOn((v) => !v)} />
+        <span className={`ps-switch ${allOn ? "on" : ""}`} onClick={() => onToggleAll(!allOn)} />
       </div>
 
       {CHANNEL_DEFS.map((def) => {
@@ -916,8 +916,8 @@ const IndexSettingsPanel: React.FC<{ onToast: (msg: string) => void }> = ({ onTo
   );
 };
 
-const AutoAnalysisPanel: React.FC<{ onToast: (msg: string) => void }> = ({ onToast }) => {
-  const [enabled, setEnabled] = useState(true);
+const AutoAnalysisPanel: React.FC<{ onToast: (msg: string) => void; autoAnalysis: boolean; onToggleAutoAnalysis: (v: boolean) => void }> = ({ onToast, autoAnalysis, onToggleAutoAnalysis }) => {
+  const enabled = autoAnalysis;
   const [base, setBase] = useState(ANALYSIS_BASE_OPTIONS[1]);
   const [minMatch, setMinMatch] = useState(95);
   const [logLines, setLogLines] = useState("All");
@@ -935,7 +935,7 @@ const AutoAnalysisPanel: React.FC<{ onToast: (msg: string) => void }> = ({ onToa
           <div className="ps-master-toggle-title">Auto-Analysis</div>
           <div className="ps-master-toggle-desc">Active Auto-Analysis will start as soon as any launch is finished</div>
         </div>
-        <span className={`ps-switch ${enabled ? "on" : ""}`} onClick={() => setEnabled((v) => !v)} />
+        <span className={`ps-switch ${enabled ? "on" : ""}`} onClick={() => onToggleAutoAnalysis(!enabled)} />
       </div>
 
       <div className="ps-field">
@@ -1069,7 +1069,7 @@ const UniqueErrorsPanel: React.FC<{ onToast: (msg: string) => void }> = ({ onToa
   );
 };
 
-const AnalyzerTab: React.FC<{ onToast: (msg: string) => void }> = ({ onToast }) => {
+const AnalyzerTab: React.FC<{ onToast: (msg: string) => void; autoAnalysis: boolean; onToggleAutoAnalysis: (v: boolean) => void }> = ({ onToast, autoAnalysis, onToggleAutoAnalysis }) => {
   const [sub, setSub] = useState("index");
   return (
     <div className="ps-panel">
@@ -1083,7 +1083,7 @@ const AnalyzerTab: React.FC<{ onToast: (msg: string) => void }> = ({ onToast }) 
         ))}
       </nav>
       {sub === "index" && <IndexSettingsPanel onToast={onToast} />}
-      {sub === "auto" && <AutoAnalysisPanel onToast={onToast} />}
+      {sub === "auto" && <AutoAnalysisPanel onToast={onToast} autoAnalysis={autoAnalysis} onToggleAutoAnalysis={onToggleAutoAnalysis} />}
       {sub === "similar" && <SimilarItemsPanel onToast={onToast} />}
       {sub === "unique" && <UniqueErrorsPanel onToast={onToast} />}
     </div>
@@ -1116,7 +1116,10 @@ const DemoDataTab: React.FC<{ onToast: (msg: string) => void }> = ({ onToast }) 
   const [generating, setGenerating] = useState(false);
   const onGenerate = () => {
     setGenerating(true);
-    setTimeout(() => { setGenerating(false); onToast("Demo data generated"); }, 1400);
+    generateDemoData()
+      .then(() => { onToast("Demo data generated — 5 launches created"); })
+      .catch(() => { onToast("Failed to generate demo data"); })
+      .finally(() => setGenerating(false));
   };
   return (
     <div className="ps-panel">
@@ -1172,6 +1175,26 @@ const Settings: React.FC = () => {
   const [values, setValues] = useState<GeneralValues>(DEFAULT_VALUES);
   const [saved, setSaved] = useState<GeneralValues>(DEFAULT_VALUES);
   const [toast, setToast] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [autoAnalysis, setAutoAnalysis] = useState(true);
+  const [notificationsOn, setNotificationsOn] = useState(false);
+
+  useEffect(() => {
+    getSettings().then((res) => {
+      const s = res.data;
+      const v: GeneralValues = {
+        name: s.project_name,
+        inactivity: s.inactivity_timeout,
+        keepLaunches: s.keep_launches,
+        keepLogs: s.keep_logs,
+        keepAttachments: s.keep_attachments,
+      };
+      setValues(v);
+      setSaved(v);
+      setAutoAnalysis(s.auto_analysis_enabled);
+      setNotificationsOn(s.notifications_enabled);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
 
   const dirty = Object.keys(values).some((k) => values[k as keyof GeneralValues] !== saved[k as keyof GeneralValues]);
 
@@ -1181,8 +1204,32 @@ const Settings: React.FC = () => {
   }, []);
 
   const onSubmit = () => {
-    setSaved(values);
-    showToast("Settings saved");
+    updateSettings({
+      project_name: values.name,
+      inactivity_timeout: values.inactivity,
+      keep_launches: values.keepLaunches,
+      keep_logs: values.keepLogs,
+      keep_attachments: values.keepAttachments,
+    }).then(() => {
+      setSaved(values);
+      showToast("Settings saved");
+    }).catch(() => showToast("Failed to save settings"));
+  };
+
+  const onToggleAutoAnalysis = (enabled: boolean) => {
+    setAutoAnalysis(enabled);
+    updateSettings({ auto_analysis_enabled: enabled }).catch(() => {
+      setAutoAnalysis(!enabled);
+      showToast("Failed to update auto-analysis");
+    });
+  };
+
+  const onToggleNotifications = (enabled: boolean) => {
+    setNotificationsOn(enabled);
+    updateSettings({ notifications_enabled: enabled }).catch(() => {
+      setNotificationsOn(!enabled);
+      showToast("Failed to update notifications");
+    });
   };
 
   return (
@@ -1192,7 +1239,7 @@ const Settings: React.FC = () => {
           <h1 className="page-title" style={{ margin: 0 }}>Project Settings</h1>
         </div>
         <div style={{ color: "var(--color-text-muted)", fontSize: 13, marginBottom: 22 }}>
-          default_personal &middot; configure retention, integrations & analyzer behavior
+          {values.name} &middot; configure retention, integrations & analyzer behavior
         </div>
       </div>
 
@@ -1207,15 +1254,17 @@ const Settings: React.FC = () => {
         </nav>
 
         <div>
-          {active === "general" && <GeneralTab values={values} setValues={setValues} onSubmit={onSubmit} dirty={dirty} />}
-          {active === "integrations" && <IntegrationsTab />}
-          {active === "notifications" && <NotificationsTab />}
-          {active === "defects" && <DefectTypesTab />}
-          {active === "logs" && <LogTypesTab />}
-          {active === "analyzer" && <AnalyzerTab onToast={showToast} />}
-          {active === "pattern" && <PatternAnalysisTab onToast={showToast} />}
-          {active === "demo" && <DemoDataTab onToast={showToast} />}
-          {active === "gates" && <QualityGatesTab onToast={showToast} />}
+          {loading ? <div className="ps-panel"><div style={{ padding: 40, textAlign: "center", color: "var(--color-text-muted)" }}>Loading settings...</div></div> : <>
+            {active === "general" && <GeneralTab values={values} setValues={setValues} onSubmit={onSubmit} dirty={dirty} />}
+            {active === "integrations" && <IntegrationsTab />}
+            {active === "notifications" && <NotificationsTab allOn={notificationsOn} onToggleAll={onToggleNotifications} />}
+            {active === "defects" && <DefectTypesTab />}
+            {active === "logs" && <LogTypesTab />}
+            {active === "analyzer" && <AnalyzerTab onToast={showToast} autoAnalysis={autoAnalysis} onToggleAutoAnalysis={onToggleAutoAnalysis} />}
+            {active === "pattern" && <PatternAnalysisTab onToast={showToast} />}
+            {active === "demo" && <DemoDataTab onToast={showToast} />}
+            {active === "gates" && <QualityGatesTab onToast={showToast} />}
+          </>}
         </div>
       </div>
 

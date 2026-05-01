@@ -11,6 +11,10 @@ class ProjectSettingsUpdate(BaseModel):
     notifications_enabled: Optional[bool] = None
     retention_days: Optional[int] = None
     max_attachment_size_mb: Optional[int] = None
+    inactivity_timeout: Optional[str] = None
+    keep_launches: Optional[str] = None
+    keep_logs: Optional[str] = None
+    keep_attachments: Optional[str] = None
 
 
 class ProjectSettingsResponse(BaseModel):
@@ -22,5 +26,9 @@ class ProjectSettingsResponse(BaseModel):
     notifications_enabled: bool
     retention_days: int
     max_attachment_size_mb: int
+    inactivity_timeout: str
+    keep_launches: str
+    keep_logs: str
+    keep_attachments: str
 
     model_config = {"from_attributes": True}

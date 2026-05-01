@@ -127,4 +127,8 @@ export interface ProjectSettings {
   notifications_enabled: boolean;
   retention_days: number;
   max_attachment_size_mb: number;
+  inactivity_timeout: string;
+  keep_launches: string;
+  keep_logs: string;
+  keep_attachments: string;
 }

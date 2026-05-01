@@ -14,3 +14,7 @@ class ProjectSettings(Base):
     notifications_enabled = Column(Boolean, nullable=False, default=False)
     retention_days = Column(Integer, nullable=False, default=90)
     max_attachment_size_mb = Column(Integer, nullable=False, default=20)
+    inactivity_timeout = Column(String(50), nullable=False, default="1 day")
+    keep_launches = Column(String(50), nullable=False, default="90 days")
+    keep_logs = Column(String(50), nullable=False, default="90 days")
+    keep_attachments = Column(String(50), nullable=False, default="14 days")
