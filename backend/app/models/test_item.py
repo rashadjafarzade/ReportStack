@@ -31,3 +31,5 @@ class TestItem(Base):
     logs = relationship("TestLog", backref="test_item", cascade="all, delete-orphan")
     attachments = relationship("Attachment", backref="test_item", cascade="all, delete-orphan")
     analyses = relationship("FailureAnalysis", backref="test_item", cascade="all, delete-orphan")
+    comments = relationship("Comment", backref="test_item", cascade="all, delete-orphan")
+    defects = relationship("Defect", backref="test_item", cascade="all, delete-orphan")

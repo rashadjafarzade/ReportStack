@@ -7,9 +7,9 @@ import { StatusBadge } from "../components/StatusBadge";
 import { StatsBar } from "../components/StatsBar";
 import { LogViewer } from "../components/LogViewer";
 import { ScreenshotViewer } from "../components/ScreenshotViewer";
-import { AnalysisPanel } from "../components/AnalysisPanel";
 import { AnalysisBadge } from "../components/AnalysisBadge";
 import { LaunchAnalysisSummaryChart } from "../components/LaunchAnalysisSummary";
+import { DefectSelector } from "../components/DefectSelector";
 import { format } from "date-fns";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
@@ -19,7 +19,7 @@ const PIE_COLORS: Record<string, string> = {
   Skipped: "#f59e0b",
 };
 
-type TabType = "error" | "logs" | "screenshots" | "analysis";
+type TabType = "error" | "logs" | "screenshots";
 
 const LaunchDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -44,7 +44,7 @@ const LaunchDetail: React.FC = () => {
       .finally(() => setLoading(false));
   }, [id, filter]);
 
-  useEffect(() => {
+  const loadAnalyses = () => {
     if (!id || items.length === 0) return;
     const failedItems = items.filter((i) => i.status === "FAILED" || i.status === "ERROR");
     failedItems.forEach((item) => {
@@ -53,7 +53,9 @@ const LaunchDetail: React.FC = () => {
         setItemAnalyses((prev) => ({ ...prev, [item.id]: latest }));
       });
     });
-  }, [id, items]);
+  };
+
+  useEffect(() => { loadAnalyses(); }, [id, items]);
 
   if (!launch) {
     return (
@@ -80,12 +82,15 @@ const LaunchDetail: React.FC = () => {
   };
 
   const passRate = launch.total > 0 ? ((launch.passed / launch.total) * 100).toFixed(1) : "0";
+  const isFailed = (item: TestItem) => item.status === "FAILED" || item.status === "ERROR";
 
   return (
     <div>
       {/* Breadcrumb */}
       <div className="page-breadcrumb">
-        <Link to="/">Launches</Link>
+        <Link to="/">Dashboard</Link>
+        <span className="page-breadcrumb-separator">/</span>
+        <Link to="/launches">Launches</Link>
         <span className="page-breadcrumb-separator">/</span>
         <span>{launch.name}</span>
       </div>
@@ -104,18 +109,44 @@ const LaunchDetail: React.FC = () => {
       {/* Metric Cards */}
       <div className="metric-grid">
         <div className="metric-card">
+          <div className="metric-card-icon" style={{ background: "var(--color-primary-light)", color: "var(--color-primary)" }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+            </svg>
+          </div>
           <div className="metric-card-label">Total Tests</div>
           <div className="metric-card-value">{launch.total}</div>
         </div>
         <div className="metric-card">
+          <div className="metric-card-icon" style={{ background: "var(--color-passed-bg)", color: "var(--color-passed)" }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          </div>
           <div className="metric-card-label">Passed</div>
           <div className="metric-card-value passed">{launch.passed}</div>
         </div>
         <div className="metric-card">
+          <div className="metric-card-icon" style={{ background: "var(--color-failed-bg)", color: "var(--color-failed)" }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+          </div>
           <div className="metric-card-label">Failed</div>
           <div className="metric-card-value failed">{launch.failed}</div>
         </div>
         <div className="metric-card">
+          <div className="metric-card-icon" style={{ background: Number(passRate) >= 80 ? "var(--color-passed-bg)" : "var(--color-failed-bg)", color: Number(passRate) >= 80 ? "var(--color-passed)" : "var(--color-failed)" }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10" />
+              <line x1="12" y1="20" x2="12" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="14" />
+            </svg>
+          </div>
           <div className="metric-card-label">Pass Rate</div>
           <div className="metric-card-value" style={{ color: Number(passRate) >= 80 ? "var(--color-passed)" : "var(--color-failed)" }}>
             {passRate}%
@@ -249,57 +280,62 @@ const LaunchDetail: React.FC = () => {
                     <tr>
                       <td colSpan={5} style={{ padding: 0 }}>
                         <div className="animate-slide-down">
-                          <div className="tabs">
-                            {item.error_message && (
-                              <button
-                                className={`tab ${activeTab === "error" ? "active" : ""}`}
-                                onClick={() => setActiveTab("error")}
-                              >
-                                Error
-                              </button>
-                            )}
-                            <button
-                              className={`tab ${activeTab === "logs" ? "active" : ""}`}
-                              onClick={() => setActiveTab("logs")}
-                            >
-                              Logs
-                            </button>
-                            <button
-                              className={`tab ${activeTab === "screenshots" ? "active" : ""}`}
-                              onClick={() => setActiveTab("screenshots")}
-                            >
-                              Screenshots
-                            </button>
-                            {(item.status === "FAILED" || item.status === "ERROR") && (
-                              <button
-                                className={`tab ${activeTab === "analysis" ? "active" : ""}`}
-                                onClick={() => setActiveTab("analysis")}
-                              >
-                                AI Analysis
-                              </button>
-                            )}
-                          </div>
-                          <div className="tab-content">
-                            {activeTab === "error" && item.error_message && (
-                              <div className="error-panel">
-                                <div className="error-panel-label">Error Message</div>
-                                <pre>{item.error_message}</pre>
-                                {item.stack_trace && (
-                                  <div className="stack-trace">
-                                    <div className="error-panel-label">Stack Trace</div>
-                                    <pre>{item.stack_trace}</pre>
+                          <div className={isFailed(item) ? "test-detail-layout" : ""}>
+                            {/* Left: Error/Logs/Screenshots */}
+                            <div className={isFailed(item) ? "test-detail-main" : ""}>
+                              <div className="tabs">
+                                {item.error_message && (
+                                  <button
+                                    className={`tab ${activeTab === "error" ? "active" : ""}`}
+                                    onClick={() => setActiveTab("error")}
+                                  >
+                                    Error
+                                  </button>
+                                )}
+                                <button
+                                  className={`tab ${activeTab === "logs" ? "active" : ""}`}
+                                  onClick={() => setActiveTab("logs")}
+                                >
+                                  Logs
+                                </button>
+                                <button
+                                  className={`tab ${activeTab === "screenshots" ? "active" : ""}`}
+                                  onClick={() => setActiveTab("screenshots")}
+                                >
+                                  Screenshots
+                                </button>
+                              </div>
+                              <div className="tab-content">
+                                {activeTab === "error" && item.error_message && (
+                                  <div className="error-panel">
+                                    <div className="error-panel-label">Error Message</div>
+                                    <pre>{item.error_message}</pre>
+                                    {item.stack_trace && (
+                                      <div className="stack-trace">
+                                        <div className="error-panel-label">Stack Trace</div>
+                                        <pre>{item.stack_trace}</pre>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
+                                {activeTab === "logs" && (
+                                  <LogViewer launchId={launch.id} itemId={item.id} />
+                                )}
+                                {activeTab === "screenshots" && (
+                                  <ScreenshotViewer launchId={launch.id} itemId={item.id} />
+                                )}
                               </div>
-                            )}
-                            {activeTab === "logs" && (
-                              <LogViewer launchId={launch.id} itemId={item.id} />
-                            )}
-                            {activeTab === "screenshots" && (
-                              <ScreenshotViewer launchId={launch.id} itemId={item.id} />
-                            )}
-                            {activeTab === "analysis" && (
-                              <AnalysisPanel launchId={launch.id} itemId={item.id} />
+                            </div>
+
+                            {/* Right: Defect Selector (only for failed/error tests) */}
+                            {isFailed(item) && (
+                              <div className="test-detail-sidebar">
+                                <DefectSelector
+                                  launchId={launch.id}
+                                  itemId={item.id}
+                                  onDefectChange={() => loadAnalyses()}
+                                />
+                              </div>
                             )}
                           </div>
                         </div>

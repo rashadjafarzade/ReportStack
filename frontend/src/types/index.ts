@@ -82,3 +82,49 @@ export interface LaunchAnalysisSummary {
   no_defect: number;
   to_investigate: number;
 }
+
+export type DefectStatus = "OPEN" | "IN_PROGRESS" | "FIXED" | "WONT_FIX" | "DUPLICATE";
+
+export interface Comment {
+  id: number;
+  test_item_id: number | null;
+  launch_id: number;
+  author: string;
+  text: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Defect {
+  id: number;
+  test_item_id: number;
+  launch_id: number;
+  external_id: string | null;
+  external_url: string | null;
+  summary: string;
+  description: string | null;
+  status: DefectStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export type MemberRole = "ADMIN" | "MANAGER" | "MEMBER" | "VIEWER";
+
+export interface Member {
+  id: number;
+  name: string;
+  email: string;
+  role: MemberRole;
+  created_at: string;
+}
+
+export interface ProjectSettings {
+  project_name: string;
+  description: string;
+  default_launch_mode: string;
+  auto_analysis_enabled: boolean;
+  ai_model: string;
+  notifications_enabled: boolean;
+  retention_days: number;
+  max_attachment_size_mb: number;
+}
