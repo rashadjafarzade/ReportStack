@@ -7,6 +7,7 @@ import Members from "./pages/Members";
 import Settings from "./pages/Settings";
 import "./styles/design-tokens.css";
 import "./styles/components.css";
+import "./styles/extras.css";
 import "./index.css";
 import "./App.css";
 
@@ -100,7 +101,17 @@ const Sidebar: React.FC = () => {
         </a>
       </nav>
       <div className="sidebar-footer">
-        <div className="sidebar-version">v1.0.0</div>
+        <div className="sidebar-profile">
+          <span className="sidebar-profile-avatar">JD</span>
+          <span className="sidebar-profile-meta">
+            <span className="sidebar-profile-name">Jane Doe</span>
+            <span className="sidebar-profile-role">Project Admin</span>
+          </span>
+          <svg className="sidebar-profile-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </div>
+        <div className="sidebar-version">v1.0.0 · ReportStack</div>
       </div>
     </aside>
   );
