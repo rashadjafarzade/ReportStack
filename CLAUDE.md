@@ -1,4 +1,4 @@
-# Automation Reports Platform
+# Automation Reports Platform (ReportStack)
 
 ## What This Project Is
 
@@ -49,20 +49,33 @@ automation-reports/
 │   │   │   ├── test_items.py    # CRUD test items
 │   │   │   ├── logs.py          # Test log CRUD + batch
 │   │   │   ├── attachments.py   # File upload/serve/delete
-│   │   │   └── analyses.py      # AI analysis trigger/results/override
+│   │   │   ├── analyses.py      # AI analysis trigger/results/override
+│   │   │   ├── comments.py      # Item-level and launch-level comment CRUD
+│   │   │   ├── defects.py       # Defect CRUD with status management
+│   │   │   ├── members.py       # Project member CRUD with roles
+│   │   │   └── project_settings.py  # GET/PUT singleton project settings
 │   │   ├── models/          # SQLAlchemy models
 │   │   │   ├── launch.py        # Launch (status, stats)
-│   │   │   ├── test_item.py     # TestItem (status, error, trace)
+│   │   │   ├── test_item.py     # TestItem (status, error, trace) + relationships to comments/defects
 │   │   │   ├── log.py           # TestLog (level, message, order)
 │   │   │   ├── attachment.py    # Attachment (file on disk)
-│   │   │   └── analysis.py      # FailureAnalysis (defect type, confidence)
+│   │   │   ├── analysis.py      # FailureAnalysis (defect type, confidence)
+│   │   │   ├── comment.py       # Comment (author, text, test_item/launch)
+│   │   │   ├── defect.py        # Defect (summary, status, external link)
+│   │   │   ├── member.py        # Member (name, email, role)
+│   │   │   └── project_settings.py  # ProjectSettings singleton
 │   │   ├── schemas/         # Pydantic request/response models
+│   │   │   ├── launch.py / test_item.py / log.py / attachment.py / analysis.py
+│   │   │   ├── comment.py       # CommentCreate, CommentUpdate, CommentResponse
+│   │   │   ├── defect.py        # DefectCreate, DefectUpdate, DefectResponse
+│   │   │   ├── member.py        # MemberCreate, MemberUpdate, MemberResponse
+│   │   │   └── project_settings.py  # ProjectSettingsUpdate, ProjectSettingsResponse
 │   │   ├── services/
 │   │   │   └── ai_analyzer.py   # Ollama client, prompt engineering
 │   │   ├── database.py      # Engine, session, Base
 │   │   └── main.py          # App setup, CORS, router registration
 │   ├── migrations/
-│   │   └── versions/        # 001_logs, 002_attachments, 003_analyses
+│   │   └── versions/        # 001_logs, 002_attachments, 003_analyses, 004_comments_defects, 005_members_settings
 │   ├── requirements.txt
 │   ├── Dockerfile
 │   ├── alembic.ini
@@ -74,7 +87,11 @@ automation-reports/
 │   │   │   ├── launches.ts
 │   │   │   ├── logs.ts
 │   │   │   ├── attachments.ts
-│   │   │   └── analyses.ts
+│   │   │   ├── analyses.ts
+│   │   │   ├── comments.ts     # getItemComments, createItemComment, deleteComment
+│   │   │   ├── defects.ts      # getItemDefects, createItemDefect, updateDefect, deleteDefect
+│   │   │   ├── members.ts      # getMembers, addMember, updateMemberRole, removeMember
+│   │   │   └── settings.ts     # getSettings, updateSettings
 │   │   ├── components/      # Reusable UI components
 │   │   │   ├── StatusBadge.tsx
 │   │   │   ├── StatsBar.tsx
@@ -82,15 +99,22 @@ automation-reports/
 │   │   │   ├── ScreenshotViewer.tsx
 │   │   │   ├── AnalysisBadge.tsx
 │   │   │   ├── AnalysisPanel.tsx
-│   │   │   └── LaunchAnalysisSummary.tsx
+│   │   │   ├── LaunchAnalysisSummary.tsx
+│   │   │   ├── CommentSection.tsx   # Comment list with avatars, add/delete
+│   │   │   ├── DefectPanel.tsx      # Defect list with status dropdowns
+│   │   │   └── DefectSelector.tsx   # ReportPortal-style defect type selector with AI suggestions
 │   │   ├── pages/
+│   │   │   ├── Dashboard.tsx    # Overview metrics dashboard
 │   │   │   ├── LaunchList.tsx   # Dashboard with metrics + table
-│   │   │   └── LaunchDetail.tsx # Metrics + charts + expandable test rows
+│   │   │   ├── LaunchDetail.tsx # Two-column layout: error/logs left, defect selector right
+│   │   │   ├── Members.tsx      # Team member table with role management
+│   │   │   └── Settings.tsx     # 9-tab settings page (ReportPortal-style)
 │   │   ├── styles/
-│   │   │   ├── design-tokens.css  # CSS custom properties (colors, spacing, etc.)
-│   │   │   └── components.css     # Full component class library
+│   │   │   ├── design-tokens.css    # CSS custom properties (colors, spacing, etc.)
+│   │   │   ├── components.css       # Full component class library
+│   │   │   └── project-settings.css # Settings page styles (ps-* classes, modals, tabs)
 │   │   ├── types/index.ts   # All TypeScript interfaces
-│   │   └── App.tsx          # Router + sidebar layout
+│   │   └── App.tsx          # Router + sidebar layout (Navigation + Project sections)
 │   ├── Dockerfile           # Multi-stage: node build -> nginx
 │   └── nginx.conf           # SPA routing + /api/ proxy
 ├── plugins/
@@ -102,7 +126,15 @@ automation-reports/
 │           ├── config.py        # CLI options (--ar-url, etc.)
 │           ├── log_capture.py   # logging.Handler for test logs
 │           └── screenshot.py    # Selenium/Playwright screenshot capture
-├── docker-compose.yml       # db + backend + frontend + ollama
+├── bot/                     # Telegram CEO Agent Bot
+│   ├── main.py              # Entry point, handler registration
+│   ├── config.py            # Env vars (tokens, URLs, allowed users)
+│   ├── agent.py             # Claude client with tools + conversation history
+│   ├── handlers.py          # Telegram command & message handlers
+│   ├── backend_client.py    # Async httpx client for backend API
+│   ├── requirements.txt     # python-telegram-bot, anthropic, httpx
+│   └── Dockerfile
+├── docker-compose.yml       # db + backend + frontend + ollama + bot
 └── .env.example
 ```
 
@@ -111,11 +143,17 @@ automation-reports/
 ```
 Launch (1) ──> (N) TestItem
   │                  │
-  │                  ├──> (N) TestLog       (ordered by order_index)
-  │                  ├──> (N) Attachment    (files on disk)
-  │                  └──> (N) FailureAnalysis (AI or manual)
+  │                  ├──> (N) TestLog         (ordered by order_index)
+  │                  ├──> (N) Attachment       (files on disk)
+  │                  ├──> (N) FailureAnalysis  (AI or manual)
+  │                  ├──> (N) Comment          (author, text, timestamps)
+  │                  └──> (N) Defect           (summary, status, external link)
   │
-  └──> (N) Attachment (launch-level)
+  ├──> (N) Attachment (launch-level)
+  └──> (N) Comment    (launch-level)
+
+Member (standalone)           # name, email, role (ADMIN/MANAGER/MEMBER/VIEWER)
+ProjectSettings (singleton)   # project config (name, retention, AI, notifications)
 ```
 
 ### Key Enums
@@ -125,6 +163,8 @@ Launch (1) ──> (N) TestItem
 - **AttachmentType**: SCREENSHOT, LOG_FILE, VIDEO, OTHER
 - **DefectType**: PRODUCT_BUG, AUTOMATION_BUG, SYSTEM_ISSUE, NO_DEFECT, TO_INVESTIGATE
 - **AnalysisSource**: AI_AUTO, MANUAL
+- **DefectStatus**: OPEN, IN_PROGRESS, FIXED, WONT_FIX, DUPLICATE
+- **MemberRole**: ADMIN, MANAGER, MEMBER, VIEWER
 
 ## API Endpoints (all under /api/v1)
 
@@ -160,12 +200,36 @@ Launch (1) ──> (N) TestItem
 - `GET /launches/{id}/analysis-summary` — aggregate defect counts
 - `PUT /launches/{id}/items/{item_id}/analyses/{analysis_id}` — manual override
 
+### Comments
+- `POST /launches/{id}/items/{item_id}/comments/` — create item-level comment
+- `GET /launches/{id}/items/{item_id}/comments/` — list item comments
+- `POST /launches/{id}/comments/` — create launch-level comment
+- `GET /launches/{id}/comments/` — list launch comments
+- `PUT /comments/{id}` — update comment
+- `DELETE /comments/{id}` — delete comment
+
+### Defects
+- `POST /launches/{id}/items/{item_id}/defects/` — create defect
+- `GET /launches/{id}/items/{item_id}/defects/` — list defects
+- `PUT /defects/{id}` — update defect (status, summary, external link)
+- `DELETE /defects/{id}` — delete defect
+
+### Members
+- `GET /members/` — list all members
+- `POST /members/` — add member (unique email)
+- `PUT /members/{id}` — update role
+- `DELETE /members/{id}` — remove member
+
+### Project Settings
+- `GET /settings/` — get settings (auto-creates with defaults)
+- `PUT /settings/` — update settings
+
 ## Frontend Design System
 
 ### Design Tokens (CSS Custom Properties)
 All styling uses `var(--token)` references defined in `design-tokens.css`. Never hardcode colors, spacing, or fonts.
 
-- **Colors**: Semantic names like `--color-passed`, `--color-primary`, `--color-text-secondary`
+- **Colors**: Semantic names like `--color-passed`, `--color-primary`, `--color-text-secondary`, `--color-surface-secondary`
 - **Spacing**: Scale from `--space-1` (4px) to `--space-12` (48px)
 - **Typography**: `--font-sans` (Inter), `--font-mono` (JetBrains Mono), sizes `--text-xs` to `--text-2xl`
 - **Shadows**: `--shadow-xs` to `--shadow-xl`
@@ -183,10 +247,39 @@ Use CSS classes, NOT inline styles. Key classes:
 - Loading: `.spinner`, `.loading-center`, `.skeleton`
 - Empty: `.empty-state`, `.empty-state-icon`, `.empty-state-title`
 
+### Project Settings Classes (in project-settings.css)
+The Settings page uses a dedicated CSS file with `ps-*` prefixed classes:
+- Shell: `.ps-shell` (grid layout with 220px sidebar + content)
+- Tabs: `.ps-tabs`, `.ps-tab`, `.ps-tab.active`, `.ps-tab-icon`
+- Panels: `.ps-panel`, `.ps-panel-head`, `.ps-panel-title`
+- Fields: `.ps-field`, `.ps-field-label`, `.ps-input`, `.ps-select`, `.ps-select-wrap`
+- Buttons: `.ps-btn`, `.ps-btn-primary`
+- Toggle: `.ps-switch`, `.ps-switch.on`
+- Integrations: `.ps-int-card`, `.ps-int-grid`, `.ps-int-status`
+- Notifications: `.ps-channel`, `.ps-rule`, `.ps-create-rule-btn`
+- Defect types: `.ps-dt-group`, `.ps-dt-row`, `.ps-dt-color-swatch`, `.ps-dt-abbr`
+- Log types: `.ps-lt-table`, `.ps-lt-row`, `.ps-lt-preview`
+- Analyzer: `.ps-subtabs`, `.ps-subtab`, `.ps-slider-wrap`, `.ps-radio`, `.ps-radio-row`
+- Modals: `.ps-modal-overlay`, `.ps-modal-head`, `.ps-modal-foot`, `.ps-rule-modal`, `.ps-confirm-modal`
+- Toast: `.ps-toast`
+
+### Settings Page Tabs
+The Project Settings page (`Settings.tsx`) has 9 tabs:
+1. **General** — Project name, inactivity timeout, retention (launches/logs/attachments)
+2. **Integrations** — Grid of integration cards (Jira, Azure DevOps, GitLab, Monday, Rally, Jama, Email, Sauce Labs)
+3. **Notifications** — Master toggle, email/slack/telegram channels with expandable sections, notification rule CRUD with triggers/recipients/attributes
+4. **Defect types** — 5 groups (PB, AB, SI, ND, TI) with color swatches, abbreviations, add/edit/delete subtypes via modal with color picker
+5. **Log types** — Table of log types with color, level, preview, filter toggle; create/edit custom types
+6. **Analyzer** — 4 sub-tabs: Index Settings, Auto-Analysis (toggle, base, match slider, log lines), Similar Items (match slider), Unique Errors (toggle, radio options)
+7. **Pattern-analysis** — Placeholder (coming soon)
+8. **Demo data** — Placeholder (coming soon)
+9. **Quality gates** — Placeholder (coming soon)
+
 ### Layout
-- Dark sidebar (240px) with navigation links
+- Dark sidebar (240px) with navigation links (Dashboard, Launches) + Project section (Members, Settings)
 - Main content area with max-width 1280px
 - Metric cards in auto-fit grid at top of pages
+- LaunchDetail uses two-column layout for failed tests: error/logs left, DefectSelector right
 
 ## AI Analyzer Details
 
@@ -242,22 +335,10 @@ A Telegram bot powered by Claude AI that serves as the project's intelligent ass
 
 ### Architecture
 ```
-Telegram User ↔ Telegram API ↔ Bot (python-telegram-bot)
-                                  │
-                                  ├── Claude API (reasoning, project knowledge)
-                                  └── Backend API (live data: launches, tests, analysis)
-```
-
-### Files
-```
-bot/
-├── main.py            # Entry point, handler registration
-├── config.py          # Env vars (tokens, URLs, allowed users)
-├── agent.py           # Claude client with tools + conversation history
-├── handlers.py        # Telegram command & message handlers
-├── backend_client.py  # Async httpx client for backend API
-├── requirements.txt   # python-telegram-bot, anthropic, httpx
-└── Dockerfile
+Telegram User <-> Telegram API <-> Bot (python-telegram-bot)
+                                  |
+                                  |-- Claude API (reasoning, project knowledge)
+                                  +-- Backend API (live data: launches, tests, analysis)
 ```
 
 ### Commands
@@ -300,6 +381,7 @@ The agent has 6 tools it can invoke during conversation:
 
 - **Backend**: Follow existing pattern — router in `api/`, model in `models/`, schema in `schemas/`. All models exported from `models/__init__.py`. Routers registered in `main.py`.
 - **Frontend**: Components in `src/components/`, pages in `src/pages/`, API clients in `src/api/`. All types in `src/types/index.ts`. Use design system CSS classes, not inline styles.
+- **Settings page**: Uses `ps-*` prefixed CSS classes from `project-settings.css`. Each tab is a self-contained component within `Settings.tsx`. State is local (frontend-only) for tabs like Integrations, Notifications, Defect types, Log types, and Analyzer.
 - **Migrations**: Sequential numbering `001_`, `002_`, etc. in `migrations/versions/`.
 - **No external API calls**: Everything local. AI runs through Ollama on the same network.
 - **File storage**: Attachments on disk at `ATTACHMENT_STORAGE_PATH`, organized as `{launch_id}/{item_id}/{uuid}_{filename}`.

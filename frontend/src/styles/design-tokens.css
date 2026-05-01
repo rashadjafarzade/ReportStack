@@ -116,6 +116,9 @@
   --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
 
+  /* Surface */
+  --color-surface-secondary: #f1f5f9;
+
   /* Layout */
   --sidebar-width: 240px;
   --sidebar-collapsed: 64px;
