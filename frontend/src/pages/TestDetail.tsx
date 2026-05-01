@@ -194,6 +194,24 @@ const TestDetail: React.FC = () => {
     return logs.filter(l => l.level === logLevel);
   }, [logs, logLevel]);
 
+  // Match attachments to their closest log by timestamp
+  const logAttachments = useMemo(() => {
+    const map: Record<number, Attachment[]> = {};
+    if (!logs.length || !attachments.length) return map;
+    attachments.forEach(a => {
+      const aTime = new Date(a.uploaded_at).getTime();
+      let closest = logs[0];
+      let minDiff = Math.abs(new Date(logs[0].timestamp).getTime() - aTime);
+      for (let i = 1; i < logs.length; i++) {
+        const diff = Math.abs(new Date(logs[i].timestamp).getTime() - aTime);
+        if (diff < minDiff) { minDiff = diff; closest = logs[i]; }
+      }
+      if (!map[closest.id]) map[closest.id] = [];
+      map[closest.id].push(a);
+    });
+    return map;
+  }, [logs, attachments]);
+
   const handleApplyDecision = useCallback((type: DefectType, comment: string) => {
     if (analyses.length > 0) {
       overrideAnalysis(launchId, itemId, analyses[0].id, { defect_type: type, reasoning: comment || undefined })
@@ -315,17 +333,44 @@ const TestDetail: React.FC = () => {
             </div>
             {filteredLogs.length === 0 ? (
               <div style={{ padding: 32, textAlign: "center", color: "var(--color-text-muted)" }}>No log entries match this filter.</div>
-            ) : filteredLogs.map(l => (
-              <div key={l.id} className="rp-log-row">
-                <div className="rp-log-message-cell">
-                  <span className={`log-level ${l.level.toLowerCase()}`} style={{ flexShrink: 0 }}>{l.level}</span>
-                  <div className="rp-log-message-content">
-                    {l.step_name && <span className="rp-log-step-tag" style={{ color: "var(--color-text-muted)" }}>[{l.step_name}]</span>} {l.message}
+            ) : filteredLogs.map(l => {
+              const rowAttachments = logAttachments[l.id] || [];
+              return (
+                <div key={l.id} className="rp-log-row">
+                  <div className="rp-log-message-cell">
+                    <span className={`log-level ${l.level.toLowerCase()}`} style={{ flexShrink: 0 }}>{l.level}</span>
+                    <div className="rp-log-message-content">
+                      {l.step_name && <span className="rp-log-step-tag">[{l.step_name}]</span>} {l.message}
+                      {rowAttachments.length > 0 && (
+                        <div className="rp-log-attachments">
+                          {rowAttachments.map(a => (
+                            <a key={a.id} href={getAttachmentUrl(a.id)} target="_blank" rel="noopener noreferrer" className="rp-log-attachment">
+                              {a.attachment_type === "SCREENSHOT" ? (
+                                <img src={getAttachmentUrl(a.id)} alt={a.file_name} className="rp-log-attachment-img" />
+                              ) : (
+                                <div className="rp-log-attachment-file">
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                                </div>
+                              )}
+                              <span className="rp-log-attachment-name">{a.file_name}</span>
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="rp-log-time-cell">
+                    {format(new Date(l.timestamp), "HH:mm:ss.SSS")}
+                    {rowAttachments.length > 0 && (
+                      <div className="rp-log-attachment-badge">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+                        {rowAttachments.length}
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div className="rp-log-time-cell">{format(new Date(l.timestamp), "HH:mm:ss.SSS")}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
