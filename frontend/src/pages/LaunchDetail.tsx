@@ -293,7 +293,7 @@ const TestsTab: React.FC<{
                         <StatusIcon status={t.status} />
                       </div>
                     </td>
-                    <td><span className="test-name">{t.name}</span></td>
+                    <td><Link to={`/launches/${launchId}/items/${t.id}`} className="test-name" onClick={e => e.stopPropagation()}>{t.name}</Link></td>
                     <td>{t.suite ? <span className="suite-pill">{t.suite}</span> : "-"}</td>
                     <td className="cell-mono cell-secondary">{fmtDuration(t.duration_ms)}</td>
                     <td>
