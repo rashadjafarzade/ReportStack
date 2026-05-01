@@ -1090,19 +1090,78 @@ const AnalyzerTab: React.FC<{ onToast: (msg: string) => void }> = ({ onToast }) 
   );
 };
 
-// ===== Placeholder Panel =====
-const PlaceholderPanel: React.FC<{ tab: typeof PS_TABS[number] }> = ({ tab }) => (
+// ===== Pattern Analysis Tab =====
+const PatternAnalysisTab: React.FC<{ onToast: (msg: string) => void }> = ({ onToast }) => (
   <div className="ps-panel">
     <div className="ps-panel-head">
-      <h2 className="ps-panel-title">{tab.label}</h2>
-      <span className="ps-panel-subtitle">Coming soon</span>
+      <h2 className="ps-panel-title">Pattern-analysis</h2>
+      <span className="ps-panel-subtitle">Auto-classify failures by stack-trace patterns</span>
     </div>
-    <div className="ps-empty">
-      <div className="ps-empty-icon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={tab.icon} /></svg>
+    <div className="ps-empty-card">
+      <span className="ps-empty-icon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="8" y1="11" x2="14" y2="11" /><line x1="11" y1="8" x2="11" y2="14" /></svg>
+      </span>
+      <div className="ps-empty-title">No Pattern Rules</div>
+      <div className="ps-empty-desc">System can analyze test results automatically by comparing test result stack trace with patterns saved in the system.</div>
+      <div className="ps-empty-actions">
+        <button className="ps-btn-primary ps-btn" onClick={() => onToast("Create Pattern modal coming soon")}>Create Pattern</button>
+        <button className="ps-link-btn">Documentation</button>
       </div>
-      <div className="ps-empty-title">{tab.label} settings</div>
-      <div>This section is not yet available. Switch to the <strong>General</strong> tab to interact.</div>
+    </div>
+  </div>
+);
+
+// ===== Demo Data Tab =====
+const DemoDataTab: React.FC<{ onToast: (msg: string) => void }> = ({ onToast }) => {
+  const [generating, setGenerating] = useState(false);
+  const onGenerate = () => {
+    setGenerating(true);
+    setTimeout(() => { setGenerating(false); onToast("Demo data generated"); }, 1400);
+  };
+  return (
+    <div className="ps-panel">
+      <div className="ps-panel-head">
+        <h2 className="ps-panel-title">Demo data</h2>
+        <span className="ps-panel-subtitle">Sample launches, dashboards & filters</span>
+      </div>
+      <div className="ps-demo-card">
+        <div className="ps-section-intro" style={{ marginBottom: 6 }}>
+          Demo data will help you get familiar with the functionality of ReportStack. By generating Demo Data, several entities will be created and will serve as examples. Demo Dashboard and Filter will be generated only if you don't have them already.
+        </div>
+        <div style={{ fontSize: 13, color: "var(--color-text)", fontWeight: 600, marginTop: 14 }}>The system will generate the following data:</div>
+        <ul className="ps-demo-list">
+          <li>5 launches</li>
+          <li>1 dashboard with 12 widgets</li>
+          <li>1 filter</li>
+        </ul>
+        <div className="ps-demo-warn">
+          <strong>Heads-up:</strong> If you generate Demo Data, you will have to remove it manually.
+        </div>
+        <button className="ps-btn-primary ps-btn" disabled={generating} onClick={onGenerate}>
+          {generating ? "Generating..." : "Generate Demo Data"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ===== Quality Gates Tab =====
+const QualityGatesTab: React.FC<{ onToast: (msg: string) => void }> = ({ onToast }) => (
+  <div className="ps-panel">
+    <div className="ps-panel-head">
+      <h2 className="ps-panel-title">Quality gates</h2>
+      <span className="ps-panel-subtitle">Pass/fail rules applied to launches</span>
+    </div>
+    <div className="ps-empty-card">
+      <span className="ps-empty-icon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+      </span>
+      <div className="ps-empty-title">No Quality Gate</div>
+      <div className="ps-empty-desc">Create Quality Gate and add rules to define the quality threshold of the launch.</div>
+      <div className="ps-empty-actions">
+        <button className="ps-btn-primary ps-btn" onClick={() => onToast("Create Quality Gate modal coming soon")}>Create Quality Gate</button>
+        <button className="ps-link-btn">Documentation</button>
+      </div>
     </div>
   </div>
 );
@@ -1125,8 +1184,6 @@ const Settings: React.FC = () => {
     setSaved(values);
     showToast("Settings saved");
   };
-
-  const activeTab = PS_TABS.find((t) => t.id === active)!;
 
   return (
     <div>
@@ -1156,7 +1213,9 @@ const Settings: React.FC = () => {
           {active === "defects" && <DefectTypesTab />}
           {active === "logs" && <LogTypesTab />}
           {active === "analyzer" && <AnalyzerTab onToast={showToast} />}
-          {!["general", "integrations", "notifications", "defects", "logs", "analyzer"].includes(active) && <PlaceholderPanel tab={activeTab} />}
+          {active === "pattern" && <PatternAnalysisTab onToast={showToast} />}
+          {active === "demo" && <DemoDataTab onToast={showToast} />}
+          {active === "gates" && <QualityGatesTab onToast={showToast} />}
         </div>
       </div>
 
