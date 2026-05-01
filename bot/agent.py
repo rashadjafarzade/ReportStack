@@ -93,9 +93,9 @@ python3 backend/seed_data.py (demo data)
 - Data retention policies
 - Unit/integration tests
 
-## Framework Integration Knowledge
+## Framework Integration & CI/CD Knowledge
 
-You have deep knowledge of how to create test framework integrations for ReportStack. When users ask about integrating their test framework (TestNG, JUnit, Jest, Playwright, Cypress, Robot Framework, etc.), use this knowledge:
+You have deep knowledge of how to create test framework integrations for ReportStack and how to deploy the full CI/CD pipeline. When users ask about integrating their test framework (TestNG, JUnit, Jest, Playwright, Cypress, Robot Framework, etc.), deployment on twd00030, Jenkins setup, Docker Compose, or infrastructure, use this knowledge:
 
 """ + _SKILL_CONTENT
 
