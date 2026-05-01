@@ -213,6 +213,9 @@ const TestsTab: React.FC<{
   const [search, setSearch] = useState("");
   const [suiteFilter, setSuiteFilter] = useState("ALL");
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const selectedItem = selectedId ? items.find(i => i.id === selectedId) : null;
+  const showRail = selectedItem && (selectedItem.status === "FAILED" || selectedItem.status === "ERROR");
 
   const suites = useMemo(() => Array.from(new Set(items.map((i) => i.suite).filter(Boolean))).sort(), [items]);
 
@@ -236,87 +239,104 @@ const TestsTab: React.FC<{
   }
 
   return (
-    <div className="tab-card">
-      <div className="filter-bar">
-        <div className="search-input-wrap">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input className="input search-input" placeholder="Search test name..." value={search} onChange={(e) => setSearch(e.target.value)} />
+    <div className={`tests-tab-layout ${showRail ? "with-rail" : ""}`}>
+      <div className="tab-card tests-tab-main">
+        <div className="filter-bar">
+          <div className="search-input-wrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input className="input search-input" placeholder="Search test name..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+          <select className="select select-md" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="ALL">All statuses</option>
+            <option value="PASSED">Passed</option>
+            <option value="FAILED">Failed</option>
+            <option value="SKIPPED">Skipped</option>
+            <option value="ERROR">Error</option>
+          </select>
+          <select className="select select-md" value={suiteFilter} onChange={(e) => setSuiteFilter(e.target.value)}>
+            <option value="ALL">All suites</option>
+            {suites.map((s) => <option key={s} value={s!}>{s}</option>)}
+          </select>
+          <span className="filter-count">{filtered.length} of {items.length}</span>
         </div>
-        <select className="select select-md" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="ALL">All statuses</option>
-          <option value="PASSED">Passed</option>
-          <option value="FAILED">Failed</option>
-          <option value="SKIPPED">Skipped</option>
-          <option value="ERROR">Error</option>
-        </select>
-        <select className="select select-md" value={suiteFilter} onChange={(e) => setSuiteFilter(e.target.value)}>
-          <option value="ALL">All suites</option>
-          {suites.map((s) => <option key={s} value={s!}>{s}</option>)}
-        </select>
-        <span className="filter-count">{filtered.length} of {items.length}</span>
-      </div>
 
-      {filtered.length === 0 ? (
-        <div className="empty-state" style={{ padding: 40 }}>
-          <div className="empty-state-title">No tests match</div>
-          <div className="empty-state-description">Try adjusting your filters.</div>
-        </div>
-      ) : (
-        <table className="data-table tests-table">
-          <thead>
-            <tr>
-              <th style={{ width: 60 }}></th>
-              <th>Test name</th>
-              <th style={{ width: 130 }}>Suite</th>
-              <th style={{ width: 110 }}>Duration</th>
-              <th>Error</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((t) => {
-              const isExpanded = expanded.has(t.id);
-              const rowCls = [
-                "row-clickable", "test-row",
-                isExpanded ? "row-expanded" : "",
-                t.status === "FAILED" ? "failed-row" : "",
-                t.status === "ERROR" ? "error-row" : "",
-              ].filter(Boolean).join(" ");
-              return (
-                <React.Fragment key={t.id}>
-                  <tr className={rowCls} onClick={() => navigate(`/launches/${launchId}/items/${t.id}`)}>
-                    <td>
-                      <div className="h-stack">
-                        <span className={`row-expand-icon ${isExpanded ? "expanded" : ""}`} onClick={e => { e.stopPropagation(); toggle(t.id); }}>
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
-                        </span>
-                        <StatusIcon status={t.status} />
-                      </div>
-                    </td>
-                    <td><span className="test-name">{t.name}</span></td>
-                    <td>{t.suite ? <span className="suite-pill">{t.suite}</span> : "-"}</td>
-                    <td className="cell-mono cell-secondary">{fmtDuration(t.duration_ms)}</td>
-                    <td>
-                      {t.error_message
-                        ? <span className={t.status === "FAILED" ? "cell-error-preview" : "cell-secondary"} style={t.status !== "FAILED" ? { fontStyle: "italic", fontSize: 12 } : undefined}>{t.error_message}</span>
-                        : <span className="cell-error-empty">{"\u2014"}</span>}
-                    </td>
-                  </tr>
-                  {isExpanded && (
-                    <tr>
-                      <td colSpan={5} className="expand-cell">
-                        <div className="animate-slide-down">
-                          <ExpandedRow item={t} analysis={analyses[t.id] || null} launchId={launchId} onDefectChange={onDefectChange} />
+        {filtered.length === 0 ? (
+          <div className="empty-state" style={{ padding: 40 }}>
+            <div className="empty-state-title">No tests match</div>
+            <div className="empty-state-description">Try adjusting your filters.</div>
+          </div>
+        ) : (
+          <table className="data-table tests-table">
+            <thead>
+              <tr>
+                <th style={{ width: 60 }}></th>
+                <th>Test name</th>
+                <th style={{ width: 130 }}>Suite</th>
+                <th style={{ width: 110 }}>Duration</th>
+                <th>Error</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((t) => {
+                const isExpanded = expanded.has(t.id);
+                const isSelected = selectedId === t.id;
+                const rowCls = [
+                  "row-clickable", "test-row",
+                  isExpanded ? "row-expanded" : "",
+                  isSelected ? "row-selected" : "",
+                  t.status === "FAILED" ? "failed-row" : "",
+                  t.status === "ERROR" ? "error-row" : "",
+                ].filter(Boolean).join(" ");
+                return (
+                  <React.Fragment key={t.id}>
+                    <tr className={rowCls} onClick={() => { setSelectedId(t.id === selectedId ? null : t.id); }}>
+                      <td>
+                        <div className="h-stack">
+                          <span className={`row-expand-icon ${isExpanded ? "expanded" : ""}`} onClick={e => { e.stopPropagation(); toggle(t.id); }}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+                          </span>
+                          <StatusIcon status={t.status} />
                         </div>
                       </td>
+                      <td>
+                        <span className="test-name" onClick={e => { e.stopPropagation(); navigate(`/launches/${launchId}/items/${t.id}`); }}>{t.name}</span>
+                      </td>
+                      <td>{t.suite ? <span className="suite-pill">{t.suite}</span> : "-"}</td>
+                      <td className="cell-mono cell-secondary">{fmtDuration(t.duration_ms)}</td>
+                      <td>
+                        {t.error_message
+                          ? <span className={t.status === "FAILED" ? "cell-error-preview" : "cell-secondary"} style={t.status !== "FAILED" ? { fontStyle: "italic", fontSize: 12 } : undefined}>{t.error_message}</span>
+                          : <span className="cell-error-empty">{"\u2014"}</span>}
+                      </td>
                     </tr>
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </tbody>
-        </table>
+                    {isExpanded && (
+                      <tr>
+                        <td colSpan={5} className="expand-cell">
+                          <div className="animate-slide-down">
+                            <ExpandedRow item={t} analysis={analyses[t.id] || null} launchId={launchId} onDefectChange={onDefectChange} />
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {showRail && selectedItem && (
+        <div className="tests-tab-rail">
+          <div className="rail-header">
+            <span className="rail-title">{selectedItem.name}</span>
+            <button className="icon-btn" onClick={() => setSelectedId(null)} title="Close">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+          </div>
+          <DefectSelector launchId={launchId} itemId={selectedItem.id} onDefectChange={onDefectChange} />
+        </div>
       )}
     </div>
   );

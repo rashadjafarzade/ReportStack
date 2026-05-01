@@ -6,6 +6,7 @@ import { getTestAttachments, getAttachmentUrl } from "../api/attachments";
 import { getItemAnalyses, overrideAnalysis } from "../api/analyses";
 import { getItemDefects } from "../api/defects";
 import { Launch, TestItem, TestLog, Attachment, FailureAnalysis, Defect, DefectType } from "../types";
+import HistoryStrip from "../components/HistoryStrip";
 import { format } from "date-fns";
 
 const DEFECT_TYPES: { value: DefectType; label: string; color: string }[] = [
@@ -274,6 +275,9 @@ const TestDetail: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* History strip */}
+      <HistoryStrip testName={item.name} currentItemId={item.id} />
 
       {/* Action toolbar */}
       <div className="rp-toolbar" style={{ marginTop: 20 }}>
