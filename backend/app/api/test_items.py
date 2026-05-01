@@ -29,6 +29,7 @@ def create_test_item(launch_id: int, data: TestItemCreate, db: Session = Depends
     launch = _get_launch(launch_id, db)
     item = TestItem(launch_id=launch.id, **data.model_dump())
     db.add(item)
+    db.flush()
     _update_launch_stats(launch, db)
     db.commit()
     db.refresh(item)
@@ -43,6 +44,7 @@ def create_test_items_batch(launch_id: int, data: TestItemBatchCreate, db: Sessi
         item = TestItem(launch_id=launch.id, **item_data.model_dump())
         db.add(item)
         items.append(item)
+    db.flush()
     _update_launch_stats(launch, db)
     db.commit()
     for item in items:
