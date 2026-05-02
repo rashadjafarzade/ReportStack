@@ -23,11 +23,17 @@
   --color-border: #e2e8f0;
   --color-border-light: #f1f5f9;
 
-  /* Primary - Indigo */
-  --color-primary: #6366f1;
-  --color-primary-hover: #4f46e5;
-  --color-primary-light: #eef2ff;
+  /* Primary - ReportStack Blue (matches logo) */
+  --color-primary: #1e40af;          /* deep brand blue */
+  --color-primary-hover: #1e3a8a;    /* darker on hover */
+  --color-primary-active: #3b82f6;   /* vibrant accent (top bar in logo) */
+  --color-primary-soft: #eff6ff;     /* very light tint */
+  --color-primary-light: #dbeafe;    /* soft blue tint */
   --color-primary-text: #ffffff;
+
+  /* Brand gradients */
+  --gradient-brand: linear-gradient(135deg, #1e40af 0%, #0b2e7c 100%);
+  --gradient-brand-soft: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
 
   /* Status Colors */
   --color-passed: #10b981;
