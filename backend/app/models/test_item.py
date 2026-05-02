@@ -26,8 +26,10 @@ class TestItem(Base):
     stack_trace = Column(Text, nullable=True)
     start_time = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     end_time = Column(DateTime(timezone=True), nullable=True)
+    retry_of = Column(Integer, ForeignKey("test_items.id"), nullable=True)
 
     launch = relationship("Launch", back_populates="test_items")
+    retries = relationship("TestItem", backref="original", remote_side=[id])
     logs = relationship("TestLog", backref="test_item", cascade="all, delete-orphan")
     attachments = relationship("Attachment", backref="test_item", cascade="all, delete-orphan")
     analyses = relationship("FailureAnalysis", backref="test_item", cascade="all, delete-orphan")

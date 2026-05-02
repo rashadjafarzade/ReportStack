@@ -302,6 +302,12 @@ const TestsTab: React.FC<{
                       </td>
                       <td>
                         <span className="test-name" onClick={e => { e.stopPropagation(); navigate(`/launches/${launchId}/items/${t.id}`); }}>{t.name}</span>
+                        {t.retry_of && (
+                          <span className="retry-badge" title={`Retry of #${t.retry_of}`}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>
+                            retry
+                          </span>
+                        )}
                       </td>
                       <td>{t.suite ? <span className="suite-pill">{t.suite}</span> : "-"}</td>
                       <td className="cell-mono cell-secondary">{fmtDuration(t.duration_ms)}</td>

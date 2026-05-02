@@ -1,13 +1,16 @@
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.launch import Launch
 from app.models.test_item import TestItem, TestStatus
-from app.schemas.test_item import TestItemCreate, TestItemBatchCreate, TestItemResponse
+from app.schemas.test_item import (
+    TestItemCreate, TestItemBatchCreate, TestItemResponse,
+    BulkStatusUpdate, BulkDefectAssign, BulkAnalyze,
+)
 
 router = APIRouter(prefix="/api/v1/launches/{launch_id}/items", tags=["test_items"])
 
@@ -109,3 +112,106 @@ def get_test_item(launch_id: int, item_id: int, db: Session = Depends(get_db)):
     if not item:
         raise HTTPException(status_code=404, detail="Test item not found")
     return item
+
+
+@router.get("/{item_id}/retries", response_model=list[TestItemResponse])
+def get_item_retries(launch_id: int, item_id: int, db: Session = Depends(get_db)):
+    """Get all retries of a test item (the retry chain)."""
+    _get_launch(launch_id, db)
+    item = db.query(TestItem).filter(TestItem.id == item_id, TestItem.launch_id == launch_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Test item not found")
+    # Walk up to original
+    root = item
+    while root.retry_of:
+        parent = db.query(TestItem).filter(TestItem.id == root.retry_of).first()
+        if not parent:
+            break
+        root = parent
+    # Collect chain from root
+    chain = [root]
+    queue = [root.id]
+    while queue:
+        current_id = queue.pop(0)
+        children = db.query(TestItem).filter(TestItem.retry_of == current_id).order_by(TestItem.id).all()
+        for child in children:
+            chain.append(child)
+            queue.append(child.id)
+    return chain
+
+
+@router.post("/bulk-update", response_model=list[TestItemResponse])
+def bulk_update_status(launch_id: int, data: BulkStatusUpdate, db: Session = Depends(get_db)):
+    """Bulk update status for multiple test items."""
+    launch = _get_launch(launch_id, db)
+    items = db.query(TestItem).filter(
+        TestItem.id.in_(data.item_ids),
+        TestItem.launch_id == launch_id,
+    ).all()
+    if not items:
+        raise HTTPException(status_code=404, detail="No matching items found")
+    for item in items:
+        item.status = data.status
+    _update_launch_stats(launch, db)
+    db.commit()
+    for item in items:
+        db.refresh(item)
+    return items
+
+
+@router.post("/bulk-defect", status_code=201)
+def bulk_assign_defect(launch_id: int, data: BulkDefectAssign, db: Session = Depends(get_db)):
+    """Bulk assign a defect to multiple test items."""
+    from app.models.defect import Defect
+    _get_launch(launch_id, db)
+    items = db.query(TestItem).filter(
+        TestItem.id.in_(data.item_ids),
+        TestItem.launch_id == launch_id,
+    ).all()
+    if not items:
+        raise HTTPException(status_code=404, detail="No matching items found")
+    created = []
+    for item in items:
+        defect = Defect(
+            launch_id=launch_id,
+            test_item_id=item.id,
+            **data.defect.model_dump(),
+        )
+        db.add(defect)
+        created.append(defect)
+    db.commit()
+    return {"message": f"Defect assigned to {len(created)} items"}
+
+
+@router.post("/bulk-analyze", status_code=202)
+def bulk_analyze(
+    launch_id: int,
+    data: BulkAnalyze,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """Bulk trigger AI analysis for multiple test items."""
+    _get_launch(launch_id, db)
+    items = db.query(TestItem).filter(
+        TestItem.id.in_(data.item_ids),
+        TestItem.launch_id == launch_id,
+    ).all()
+    if not items:
+        raise HTTPException(status_code=404, detail="No matching items found")
+
+    from app.database import SessionLocal
+    from app.services.ai_analyzer import analyze_single_item
+    import asyncio
+
+    def _run_analysis(item_id: int):
+        sess = SessionLocal()
+        try:
+            item = sess.query(TestItem).filter(TestItem.id == item_id).first()
+            if item:
+                asyncio.run(analyze_single_item(item, sess))
+        finally:
+            sess.close()
+
+    for item in items:
+        background_tasks.add_task(_run_analysis, item.id)
+    return {"message": f"Analysis triggered for {len(items)} items"}
