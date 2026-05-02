@@ -27,6 +27,12 @@ export const getDashboards = () =>
 export const createDashboard = (data: { name: string; description?: string }) =>
   api.post<Dashboard>("/dashboards/", data);
 
+export const getDashboard = (id: number) =>
+  api.get<Dashboard>(`/dashboards/${id}`);
+
+export const updateDashboard = (id: number, data: { name?: string; description?: string }) =>
+  api.put<Dashboard>(`/dashboards/${id}`, data);
+
 export const deleteDashboard = (id: number) =>
   api.delete(`/dashboards/${id}`);
 

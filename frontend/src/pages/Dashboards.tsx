@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { getDashboards, createDashboard, deleteDashboard, Dashboard } from "../api/dashboards";
 import { format } from "date-fns";
 
@@ -12,6 +13,7 @@ const WIDGET_TYPE_LABELS: Record<string, string> = {
 };
 
 const Dashboards: React.FC = () => {
+  const navigate = useNavigate();
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -89,10 +91,10 @@ const Dashboards: React.FC = () => {
       ) : (
         <div className="dashboard-grid">
           {dashboards.map(d => (
-            <div key={d.id} className="dashboard-card">
+            <div key={d.id} className="dashboard-card" onClick={() => navigate(`/dashboards/${d.id}`)} style={{ cursor: "pointer" }}>
               <div className="dashboard-card-header">
                 <div className="dashboard-card-title">{d.name}</div>
-                <button className="icon-btn danger" title="Delete" onClick={() => handleDelete(d.id)}>
+                <button className="icon-btn danger" title="Delete" onClick={e => { e.stopPropagation(); handleDelete(d.id); }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
                 </button>
               </div>

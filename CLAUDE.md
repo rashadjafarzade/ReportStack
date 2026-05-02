@@ -384,4 +384,4 @@ The agent has 6 tools it can invoke during conversation:
 - **Settings page**: Uses `ps-*` prefixed CSS classes from `project-settings.css`. Each tab is a self-contained component within `Settings.tsx`. State is local (frontend-only) for tabs like Integrations, Notifications, Defect types, Log types, and Analyzer.
 - **Migrations**: Sequential numbering `001_`, `002_`, etc. in `migrations/versions/`.
 - **No external API calls**: Everything local. AI runs through Ollama on the same network.
-- **File storage**: Attachments on disk at `ATTACHMENT_STORAGE_PATH`, organized as `{launch_id}/{item_id}/{uuid}_{filename}`.
+- **File storage**: Attachments stored in MinIO (S3-compatible) in the `attachments` bucket, organized as `{launch_id}/{item_id}/{uuid}_{filename}`.
