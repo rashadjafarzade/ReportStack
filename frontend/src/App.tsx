@@ -1,5 +1,6 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, NavLink, useLocation } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, NavLink, Navigate, useLocation } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import Dashboard from "./pages/Dashboard";
 import LaunchList from "./pages/LaunchList";
 import LaunchDetail from "./pages/LaunchDetail";
@@ -9,6 +10,7 @@ import TestDetail from "./pages/TestDetail";
 import Profile from "./pages/Profile";
 import Dashboards from "./pages/Dashboards";
 import Trends from "./pages/Trends";
+import Login from "./pages/Login";
 import "./styles/design-tokens.css";
 import "./styles/components.css";
 import "./styles/extras.css";
@@ -21,6 +23,9 @@ const SidebarIcon: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 
 const Sidebar: React.FC = () => {
   const location = useLocation();
+  const { user, logout } = useAuth();
+
+  const initials = user ? user.name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2) : "??";
 
   return (
     <aside className="layout-sidebar">
@@ -30,25 +35,15 @@ const Sidebar: React.FC = () => {
       </div>
       <nav className="sidebar-nav">
         <div className="sidebar-section-label">Navigation</div>
-        <NavLink
-          to="/"
-          end
-          className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
-        >
+        <NavLink to="/" end className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}>
           <SidebarIcon>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="7" height="7" />
-              <rect x="14" y="3" width="7" height="7" />
-              <rect x="14" y="14" width="7" height="7" />
-              <rect x="3" y="14" width="7" height="7" />
+              <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
             </svg>
           </SidebarIcon>
           Dashboard
         </NavLink>
-        <NavLink
-          to="/launches"
-          className={({ isActive }) => `sidebar-link ${isActive || location.pathname.startsWith("/launches") ? "active" : ""}`}
-        >
+        <NavLink to="/launches" className={({ isActive }) => `sidebar-link ${isActive || location.pathname.startsWith("/launches") ? "active" : ""}`}>
           <SidebarIcon>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -56,23 +51,15 @@ const Sidebar: React.FC = () => {
           </SidebarIcon>
           Launches
         </NavLink>
-        <NavLink
-          to="/dashboards"
-          className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
-        >
+        <NavLink to="/dashboards" className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}>
           <SidebarIcon>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <line x1="3" y1="9" x2="21" y2="9" />
-              <line x1="9" y1="21" x2="9" y2="9" />
+              <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" />
             </svg>
           </SidebarIcon>
           Dashboards
         </NavLink>
-        <NavLink
-          to="/trends"
-          className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
-        >
+        <NavLink to="/trends" className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}>
           <SidebarIcon>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
@@ -82,24 +69,16 @@ const Sidebar: React.FC = () => {
         </NavLink>
 
         <div className="sidebar-section-label">Project</div>
-        <NavLink
-          to="/members"
-          className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
-        >
+        <NavLink to="/members" className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}>
           <SidebarIcon>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
           </SidebarIcon>
           Members
         </NavLink>
-        <NavLink
-          to="/settings"
-          className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}
-        >
+        <NavLink to="/settings" className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}>
           <SidebarIcon>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3" />
@@ -110,19 +89,11 @@ const Sidebar: React.FC = () => {
         </NavLink>
 
         <div className="sidebar-section-label">Tools</div>
-        <a
-          href="http://localhost:8000/docs"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="sidebar-link"
-        >
+        <a href="http://localhost:8000/docs" target="_blank" rel="noopener noreferrer" className="sidebar-link">
           <SidebarIcon>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-              <polyline points="10 9 9 9 8 9" />
+              <polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
             </svg>
           </SidebarIcon>
           API Docs
@@ -130,42 +101,76 @@ const Sidebar: React.FC = () => {
       </nav>
       <div className="sidebar-footer">
         <NavLink to="/profile" className={({ isActive }) => `sidebar-profile ${isActive ? "active" : ""}`} style={{ textDecoration: "none" }}>
-          <span className="sidebar-profile-avatar">JD</span>
+          <span className="sidebar-profile-avatar">{initials}</span>
           <span className="sidebar-profile-meta">
-            <span className="sidebar-profile-name">Jane Doe</span>
-            <span className="sidebar-profile-role">Project Admin</span>
+            <span className="sidebar-profile-name">{user?.name || "User"}</span>
+            <span className="sidebar-profile-role">{user?.role || "Member"}</span>
           </span>
           <svg className="sidebar-profile-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="9 18 15 12 9 6" />
           </svg>
         </NavLink>
-        <div className="sidebar-version">v1.0.0 · ReportStack</div>
+        <button onClick={logout} className="sidebar-logout-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          Sign out
+        </button>
+        <div className="sidebar-version">v2.0 · ReportStack</div>
       </div>
     </aside>
   );
 };
 
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="loading-center"><div className="spinner spinner-lg" /></div>;
+  if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+};
+
+function AppRoutes() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div className="loading-center"><div className="spinner spinner-lg" /></div>;
+  }
+
+  return (
+    <Routes>
+      <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+      <Route path="*" element={
+        <ProtectedRoute>
+          <div className="layout">
+            <Sidebar />
+            <main className="layout-main">
+              <div className="layout-content">
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/launches" element={<LaunchList />} />
+                  <Route path="/launches/:id" element={<LaunchDetail />} />
+                  <Route path="/launches/:id/items/:itemId" element={<TestDetail />} />
+                  <Route path="/members" element={<Members />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/dashboards" element={<Dashboards />} />
+                  <Route path="/trends" element={<Trends />} />
+                </Routes>
+              </div>
+            </main>
+          </div>
+        </ProtectedRoute>
+      } />
+    </Routes>
+  );
+}
+
 function App() {
   return (
     <Router>
-      <div className="layout">
-        <Sidebar />
-        <main className="layout-main">
-          <div className="layout-content">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/launches" element={<LaunchList />} />
-              <Route path="/launches/:id" element={<LaunchDetail />} />
-              <Route path="/launches/:id/items/:itemId" element={<TestDetail />} />
-              <Route path="/members" element={<Members />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/dashboards" element={<Dashboards />} />
-              <Route path="/trends" element={<Trends />} />
-            </Routes>
-          </div>
-        </main>
-      </div>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
     </Router>
   );
 }
