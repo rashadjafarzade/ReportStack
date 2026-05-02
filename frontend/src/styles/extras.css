@@ -1598,19 +1598,12 @@ td.expand-cell {
   display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 20px; padding-bottom: 16px;
   border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap; gap: 12px;
 }
-.dv-breadcrumb {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 14px; color: var(--color-text-muted);
+.dv-toolbar-left {
+  display: flex; align-items: center; gap: 10px;
 }
-.dv-breadcrumb-link {
-  color: var(--color-primary); text-decoration: none; font-weight: 500;
-}
-.dv-breadcrumb-link:hover { text-decoration: underline; }
-.dv-breadcrumb-current {
-  color: var(--color-text); font-weight: 600;
-}
-.dv-toolbar-actions { display: flex; gap: 8px; }
+.dv-toolbar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .dv-widget-grid {
   display: grid;
