@@ -1829,6 +1829,61 @@ td.expand-cell {
 }
 
 /* Retry badge */
+/* Dark mode surface overrides */
+[data-theme="dark"] .login-page {
+  background: #020617;
+}
+[data-theme="dark"] .login-card {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+[data-theme="dark"] .card,
+[data-theme="dark"] .tab-card,
+[data-theme="dark"] .metric-card {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+[data-theme="dark"] .data-table th {
+  background: var(--color-surface-secondary);
+  border-color: var(--color-border);
+}
+[data-theme="dark"] .data-table td {
+  border-color: var(--color-border);
+}
+[data-theme="dark"] .input,
+[data-theme="dark"] .select,
+[data-theme="dark"] .pf-input,
+[data-theme="dark"] .pf-select {
+  background: var(--color-bg);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+[data-theme="dark"] .stack-block,
+[data-theme="dark"] .error-block {
+  background: #0f172a;
+  border-color: var(--color-border);
+}
+[data-theme="dark"] .ai-card {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+[data-theme="dark"] .filter-bar {
+  border-color: var(--color-border);
+}
+[data-theme="dark"] .tabs {
+  border-color: var(--color-border);
+}
+[data-theme="dark"] .profile-card {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+[data-theme="dark"] .api-key-row {
+  border-color: var(--color-border);
+}
+[data-theme="dark"] .code-block {
+  background: #020617;
+}
+
 .retry-badge {
   display: inline-flex;
   align-items: center;

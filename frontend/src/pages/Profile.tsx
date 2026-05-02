@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from "react";
+import { useTheme } from "../context/ThemeContext";
 
 const PROFILE_TABS = [
   { id: "keys", label: "API keys" },
@@ -143,6 +144,7 @@ $ curl -X POST http://your-server:8000/api/v1/launches/ \\
 const Profile: React.FC = () => {
   const [tab, setTab] = useState("keys");
   const [toast, setToast] = useState<string | null>(null);
+  const { theme, setTheme } = useTheme();
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -194,10 +196,10 @@ const Profile: React.FC = () => {
           <div className="profile-field-row">
             <div className="profile-field-label">Theme</div>
             <div className="profile-field-value">Switch between light and dark surfaces.</div>
-            <select className="pf-select" defaultValue="Light">
-              <option>Light</option>
-              <option>Dark</option>
-              <option>System</option>
+            <select className="pf-select" value={theme} onChange={e => setTheme(e.target.value as any)}>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+              <option value="system">System</option>
             </select>
           </div>
         </div>
