@@ -214,7 +214,7 @@ const Dashboards: React.FC = () => {
               <XAxis dataKey="name" tick={{ fill: "#64748b", fontSize: 11 }} />
               <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={(v: any) => `${v}s`} />
               <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: any) => [`${v}s`, "Duration"]} />
-              <Line type="monotone" dataKey="duration" stroke="#6366f1" strokeWidth={2} dot={{ r: 3, fill: "#6366f1" }} />
+              <Line type="monotone" dataKey="duration" stroke="#1e40af" strokeWidth={2} dot={{ r: 3, fill: "#1e40af" }} />
             </LineChart>
           </ResponsiveContainer>
         );
