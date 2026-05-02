@@ -37,6 +37,7 @@ export interface TestItem {
   stack_trace: string | null;
   start_time: string;
   end_time: string | null;
+  retry_of: number | null;
 }
 
 export interface TestLog {
