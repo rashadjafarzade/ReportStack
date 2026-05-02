@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import launches, test_items, logs, attachments, analyses, comments, defects, members, project_settings, dashboards, test_history
+from app.api import launches, test_items, logs, attachments, analyses, comments, defects, members, project_settings, dashboards, test_history, auth
 from app.database import engine, Base
 from app.services.storage import ensure_bucket
 
@@ -32,6 +32,7 @@ app.include_router(members.router)
 app.include_router(project_settings.router)
 app.include_router(dashboards.router)
 app.include_router(test_history.router)
+app.include_router(auth.router)
 
 
 @app.on_event("startup")

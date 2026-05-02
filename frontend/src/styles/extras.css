@@ -1704,6 +1704,56 @@ td.expand-cell {
   .dv-stats-panel { grid-template-columns: repeat(2, 1fr); }
 }
 
+/* ===== Login Page ===== */
+.login-page {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--color-surface-secondary);
+}
+.login-card {
+  width: 400px; max-width: 90vw;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 40px 32px;
+  box-shadow: var(--shadow-lg);
+}
+.login-logo {
+  text-align: center; margin-bottom: 28px;
+  display: flex; flex-direction: column; align-items: center;
+}
+.login-form { display: flex; flex-direction: column; gap: 16px; }
+.login-field label {
+  display: block; font-size: 13px; font-weight: 600;
+  color: var(--color-text-secondary); margin-bottom: 6px;
+}
+.login-field .input {
+  width: 100%; padding: 10px 12px; font-size: 14px;
+}
+.login-error {
+  background: #fef2f2; border: 1px solid #fecaca;
+  color: #dc2626; padding: 10px 14px;
+  border-radius: var(--radius-md); font-size: 13px;
+}
+.login-toggle {
+  text-align: center; margin-top: 20px;
+  font-size: 13px; color: var(--color-text-muted);
+}
+.login-toggle button {
+  background: none; border: none; color: var(--color-primary);
+  font-weight: 600; cursor: pointer; font-size: 13px;
+}
+.login-toggle button:hover { text-decoration: underline; }
+
+.sidebar-logout-btn {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 8px 16px;
+  background: none; border: none;
+  color: var(--color-text-muted); font-size: 12px;
+  cursor: pointer; transition: color var(--transition-fast);
+}
+.sidebar-logout-btn:hover { color: var(--color-failed); }
+
 /* ===== Launch Tags ===== */
 .launch-tags {
   display: inline-flex; flex-wrap: wrap; gap: 4px;
