@@ -16,6 +16,7 @@ export interface Launch {
   passed: number;
   failed: number;
   skipped: number;
+  tags: string[] | null;
 }
 
 export interface LaunchListResponse {

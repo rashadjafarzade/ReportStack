@@ -107,6 +107,13 @@ const LaunchList: React.FC = () => {
                   <td className="cell-secondary">{launch.id}</td>
                   <td className="cell-name">
                     <Link to={`/launches/${launch.id}`}>{launch.name}</Link>
+                    {launch.tags && launch.tags.length > 0 && (
+                      <div className="launch-tags">
+                        {launch.tags.map(tag => (
+                          <span key={tag} className="launch-tag">{tag}</span>
+                        ))}
+                      </div>
+                    )}
                   </td>
                   <td>
                     <StatusBadge status={launch.status} />
