@@ -1,0 +1,69 @@
+/sessions/funny-wizardly-feynman/.local/lib/python3.10/site-packages/pydantic/_internal/_fields.py:160: UserWarning: Field "model_name" has conflict with protected namespace "model_".
+
+You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+  warnings.warn(
+Traceback (most recent call last):
+  File "/sessions/funny-wizardly-feynman/.local/lib/python3.10/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/sessions/funny-wizardly-feynman/.local/lib/python3.10/site-packages/sqlalchemy/engine/default.py", line 924, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: disk I/O error
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/sessions/funny-wizardly-feynman/mnt/automation-reports/tests/e2e/scripts/run-backend-sandbox.py", line 93, in <module>
+    from app.main import app  # noqa: E402,F401
+  File "/sessions/funny-wizardly-feynman/mnt/automation-reports/backend/app/main.py", line 9, in <module>
+    Base.metadata.create_all(bind=engine)
+  File "/sessions/funny-wizardly-feynman/.local/lib/python3.10/site-packages/sqlalchemy/sql/schema.py", line 5857, in create_all
+    bind._run_ddl_visitor(
+  File "/sessions/funny-wizardly-feynman/.local/lib/python3.10/site-packages/sqlalchemy/engine/base.py", line 3251, in _run_ddl_visitor
+    conn._run_ddl_visitor(visitorcallable, element, **kwargs)
+  File "/sessions/funny-wizardly-feynman/.local/lib/python3.10/site-packages/sqlalchemy/engine/base.py", line 2457, in _run_ddl_visitor
+    visitorcallable(self.dialect, self, **kwargs).traverse_single(element)
+  File "/sessions/funny-wizardly-feynman/.local/lib/python3.10/site-packages/sqlalchemy/sql/visitors.py", line 664, in traverse_single
+    return meth(obj, **kw)
+  File "/sessions/funny-wizardly-feynman/.local/lib/python3.10/site-packages/sqlalchemy/sql/ddl.py", line 918, in visit_metadata
+    self.traverse_single(
+  File "/sessions/funny-wizardly-feynman/.local/lib/python3.10/site-packages/sqlalchemy/sql/visitors.py", line 664, in traverse_single
+    return meth(obj, **kw)
+  File "/sessions/funny-wizardly-feynman/.local/lib/python3.10/site-packages/sqlalchemy/sql/ddl.py", line 956, in visit_table
+    )._invoke_with(self.connection)
+  File "/sessions/funny-wizardly-feynman/.local/lib/python3.10/site-packages/sqlalchemy/sql/ddl.py", line 314, in _invoke_with
+    return bind.execute(self)
+  File "/sessions/funny-wizardly-feynman/.local/lib/python3.10/site-packages/sqlalchemy/engine/base.py", line 1418, in execute
+    return meth(
+  File "/sessions/funny-wizardly-feynman/.local/lib/python3.10/site-packages/sqlalchemy/sql/ddl.py", line 180, in _execute_on_connection
+    return connection._execute_ddl(
+  File "/sessions/funny-wizardly-feynman/.local/lib/python3.10/site-packages/sqlalchemy/engine/base.py", line 1529, in _execute_ddl
+    ret = self._execute_context(
+  File "/sessions/funny-wizardly-feynman/.local/lib/python3.10/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+  File "/sessions/funny-wizardly-feynman/.local/lib/python3.10/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/sessions/funny-wizardly-feynman/.local/lib/python3.10/site-packages/sqlalchemy/engine/base.py", line 2353, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/sessions/funny-wizardly-feynman/.local/lib/python3.10/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/sessions/funny-wizardly-feynman/.local/lib/python3.10/site-packages/sqlalchemy/engine/default.py", line 924, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) disk I/O error
+[SQL: 
+CREATE TABLE launches (
+	id INTEGER NOT NULL, 
+	name VARCHAR(255) NOT NULL, 
+	description VARCHAR(1024), 
+	status VARCHAR(11) NOT NULL, 
+	start_time DATETIME, 
+	end_time DATETIME, 
+	total INTEGER, 
+	passed INTEGER, 
+	failed INTEGER, 
+	skipped INTEGER, 
+	tags TEXT, 
+	PRIMARY KEY (id)
+)
+
+]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)

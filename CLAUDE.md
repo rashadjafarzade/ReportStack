@@ -17,7 +17,8 @@ A self-hosted test automation reporting platform (similar to ReportPortal.io). I
 | AI | Ollama (local LLM) | mistral:7b default |
 | Plugin | pytest plugin | pytest >= 7.0 |
 | Storage | MinIO (S3-compatible) | latest |
-| Auth | JWT (PyJWT + passlib/bcrypt) | — |
+| Auth | JWT (PyJWT + bcrypt) | — |
+| E2E Tests | Playwright | ^1.48 |
 | Infra | Docker Compose | v3.8 |
 
 ## Architecture
@@ -147,6 +148,16 @@ automation-reports/
 │   ├── backend_client.py    # Async httpx client for backend API
 │   ├── requirements.txt     # python-telegram-bot, anthropic, httpx
 │   └── Dockerfile
+├── tests/
+│   └── e2e/                 # Playwright E2E tests
+│       ├── playwright.config.ts
+│       ├── package.json
+│       ├── tsconfig.json
+│       ├── fixtures/
+│       │   └── api-helper.ts    # API seeding helpers (register, createLaunch, etc.)
+│       ├── auth.spec.ts         # Auth flow + role tests
+│       ├── launches.spec.ts     # Launch lifecycle + filtering + bulk ops + retry
+│       └── test-items-logs.spec.ts  # Items, logs, attachments, detail page
 ├── docker-compose.yml       # db + backend + frontend + ollama + bot
 └── .env.example
 ```
@@ -269,11 +280,28 @@ Dashboard (1) ──> (N) Widget  # configurable widget grids
 ### Design Tokens (CSS Custom Properties)
 All styling uses `var(--token)` references defined in `design-tokens.css`. Never hardcode colors, spacing, or fonts.
 
-- **Colors**: Semantic names like `--color-passed`, `--color-primary`, `--color-text-secondary`, `--color-surface-secondary`
+- **Brand palette** (set May 2026 — supersedes the original indigo): `--color-primary` `#1e40af`, `--color-primary-hover` `#1e3a8a`, `--color-primary-active` `#3b82f6` (bright accent — sidebar stripe, focus ring), `--color-primary-soft` `#eff6ff` (row tints, subtle backgrounds), `--color-primary-light` `#dbeafe`
+- **Brand gradients**: `--gradient-brand` (`#1e40af → #0b2e7c`, used on the logo tile and login top stripe), `--gradient-brand-soft` (`#eff6ff → #dbeafe`, reserved for hero/empty states)
+- **Status colors**: `--color-passed`, `--color-failed`, `--color-skipped`, `--color-error`, `--color-in-progress`, `--color-stopped`
 - **Spacing**: Scale from `--space-1` (4px) to `--space-12` (48px)
 - **Typography**: `--font-sans` (Inter), `--font-mono` (JetBrains Mono), sizes `--text-xs` to `--text-2xl`
 - **Shadows**: `--shadow-xs` to `--shadow-xl`
 - **Radius**: `--radius-sm` (4px) to `--radius-full` (9999px)
+
+### Branding & Logo Assets
+Brand identity: stacked horizontal bars in three blue tones (a bar chart / "stack" metaphor matching the platform's purpose), paired with a "Report**Stack**" wordmark where "Stack" picks up the primary blue.
+
+| Asset | Path | Purpose |
+|-------|------|---------|
+| Horizontal lockup | `frontend/src/logo.svg` | Imported in components (Sidebar, Login). Text is converted to vector paths so it renders identically without a font dependency. |
+| Centered icon mark | (built inline in `App.tsx`) | 3-bar SVG inside the 36×36 brand-gradient tile in the sidebar logo block. |
+| Favicon | `frontend/public/favicon.ico` | Multi-size (16/32/48/64/128/256) bundled from the rounded blue tile design. |
+| PWA icons | `frontend/public/logo192.png`, `logo512.png` | Apple touch icon + PWA install icon. |
+| App tile mark | (rendered inside `.sidebar-logo-icon`) | Uses `--gradient-brand` background with white/light bars. |
+
+PWA metadata in `frontend/public/manifest.json` (`name`, `short_name`, `theme_color: #1E40AF`) and `<title>` / `<meta theme-color>` in `index.html` are aligned with the brand. The pre-existing CRA placeholders are gone.
+
+Bonus working files (logo source SVGs, full lockup, stacked variant, icon tile) live outside the repo in the original Cowork session output folder; only the in-app assets above are versioned here.
 
 ### Component Classes (in components.css)
 Use CSS classes, NOT inline styles. Key classes:
@@ -316,10 +344,19 @@ The Project Settings page (`Settings.tsx`) has 9 tabs:
 9. **Quality gates** — Placeholder (coming soon)
 
 ### Layout
-- Dark sidebar (240px) with navigation links (Dashboard, Launches) + Project section (Members, Settings)
-- Main content area with max-width 1280px
-- Metric cards in auto-fit grid at top of pages
-- LaunchDetail uses two-column layout for failed tests: error/logs left, DefectSelector right
+- Dark sidebar (240px) with navigation links (Dashboard, Launches) + Project section (Members, Settings). Logo header uses a 36×36 `--gradient-brand` tile housing the inline 3-bar SVG mark.
+- Active `.sidebar-link` shows a 3px `--color-primary-active` left stripe (via `::before`) over a soft blue tint.
+- Main content area with max-width 1280px. `.page-title` uses `-0.015em` letter-spacing for a tighter brand feel.
+- Metric cards in auto-fit grid at top of pages; hover lifts with a brand-tinted shadow rather than the previous neutral one.
+- Login surface uses a layered radial brand-tinted gradient backdrop, a 16-radius card with `--shadow-xl`, and a 3px `--gradient-brand` stripe across the card's top edge.
+- LaunchDetail uses two-column layout for failed tests: error/logs left, DefectSelector right.
+
+### Brand rollout status
+Wave 1 (May 2026) — committed on `main`: tokens + Sidebar + Login + Launches list + small launch-detail polish (back button hover, page-title spacing, btn-primary brand shadow).
+
+Wave 2 (May 2026) — completed: all hardcoded indigo colors (`#6366f1`, `#4f46e5`, etc.) replaced with brand tokens across Dashboards, Trends, LaunchDetail, extras.css, and components.css. Empty-state icons use `--color-primary-soft` / `--color-primary`.
+
+Dark mode (May 2026) — completed: full `[data-theme="dark"]` token overrides in `design-tokens.css`, dark surface overrides in `extras.css`, functional theme switcher in Profile page (light/dark/system via `ThemeContext`), system preference detection via `matchMedia`.
 
 ## AI Analyzer Details
 
