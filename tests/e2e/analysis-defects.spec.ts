@@ -133,14 +133,14 @@ test.describe("AI analysis, defects, comments", () => {
     const ctx = await apiClient(user.token);
     // Create
     const c1 = await ctx.post(
-      `/launches/${launch.id}/items/${item.id}/comments/`,
+      `/launches/${launch.id}/items/${item.id}/comments`,
       { data: { text: "first take — looks like an automation flake" } }
     );
     expect(c1.ok()).toBeTruthy();
     const created = await c1.json();
     // List
     const list = await ctx.get(
-      `/launches/${launch.id}/items/${item.id}/comments/`
+      `/launches/${launch.id}/items/${item.id}/comments`
     );
     expect(list.ok()).toBeTruthy();
     const listed = await list.json();
@@ -168,7 +168,7 @@ test.describe("AI analysis, defects, comments", () => {
 
     const ctx = await apiClient(user.token);
     const c1 = await ctx.post(
-      `/launches/${launch.id}/items/${item.id}/defects/`,
+      `/launches/${launch.id}/items/${item.id}/defects`,
       {
         data: {
           summary: "checkout submit button doesn't respond on iOS",
@@ -192,7 +192,7 @@ test.describe("AI analysis, defects, comments", () => {
 
     // List shows the defect.
     const list = await ctx.get(
-      `/launches/${launch.id}/items/${item.id}/defects/`
+      `/launches/${launch.id}/items/${item.id}/defects`
     );
     expect(list.ok()).toBeTruthy();
     const listed = await list.json();

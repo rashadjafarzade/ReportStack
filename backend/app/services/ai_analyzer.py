@@ -106,6 +106,15 @@ async def analyze_single_item(item: TestItem, db: Session) -> FailureAnalysis:
         except httpx.HTTPError as e:
             logger.error(f"Ollama unreachable for item {item.id}: {e}")
             break
+        except Exception as e:
+            # Catch-all so analyzer crashes can't swallow the BackgroundTask
+            # silently — any error must still produce a TO_INVESTIGATE row so
+            # the UI shows the failure was at least seen.
+            logger.error(
+                f"Unexpected analyzer error for item {item.id}: {e}",
+                exc_info=True,
+            )
+            break
 
     # Fallback
     analysis = FailureAnalysis(

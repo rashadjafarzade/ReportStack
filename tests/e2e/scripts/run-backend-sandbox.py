@@ -34,6 +34,13 @@ os.environ.setdefault("OLLAMA_BASE_URL", "http://127.0.0.1:1")
 os.environ.setdefault("MINIO_ENDPOINT", "127.0.0.1:9999")  # unreachable; we'll stub
 os.environ.setdefault("JWT_SECRET", "sandbox-secret-not-for-production")
 
+# Wipe proxy env vars — httpx tries to use SOCKS proxies if HTTP_PROXY/ALL_PROXY
+# point at one, and crashes when the optional `socksio` package isn't installed.
+# Tests don't need a proxy to reach 127.0.0.1.
+for v in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY",
+          "http_proxy", "https_proxy", "all_proxy"):
+    os.environ.pop(v, None)
+
 # Make the backend importable.
 sys.path.insert(0, str(ROOT / "backend"))
 

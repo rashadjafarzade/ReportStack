@@ -207,7 +207,7 @@ export async function addItemComment(
 ) {
   const ctx = await apiClient(token);
   const res = await ctx.post(
-    `/launches/${launchId}/items/${itemId}/comments/`,
+    `/launches/${launchId}/items/${itemId}/comments`,
     { data: { text } }
   );
   expect(res.ok(), `comment: ${res.status()}`).toBeTruthy();
@@ -224,7 +224,7 @@ export async function addDefect(
 ) {
   const ctx = await apiClient(token);
   const res = await ctx.post(
-    `/launches/${launchId}/items/${itemId}/defects/`,
+    `/launches/${launchId}/items/${itemId}/defects`,
     { data: { summary, status, defect_type: "PRODUCT_BUG" } }
   );
   expect(res.ok(), `defect: ${res.status()}`).toBeTruthy();
