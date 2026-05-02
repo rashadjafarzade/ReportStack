@@ -1,9 +1,7 @@
-import os
 import uuid
-from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -11,10 +9,10 @@ from app.models.launch import Launch
 from app.models.test_item import TestItem
 from app.models.attachment import Attachment, AttachmentType
 from app.schemas.attachment import AttachmentResponse
+from app.services.storage import upload_file, download_file, delete_file
 
 router = APIRouter(prefix="/api/v1", tags=["attachments"])
 
-STORAGE_PATH = Path(os.getenv("ATTACHMENT_STORAGE_PATH", "/data/automation-reports/attachments"))
 MAX_FILE_SIZE = 20 * 1024 * 1024  # 20MB
 
 MIME_TO_TYPE = {
@@ -58,18 +56,11 @@ async def _save_upload(
     content_type = file.content_type or "application/octet-stream"
 
     if item_id:
-        rel_dir = f"{launch_id}/{item_id}"
+        object_key = f"{launch_id}/{item_id}/{unique_name}"
     else:
-        rel_dir = f"{launch_id}/_launch"
+        object_key = f"{launch_id}/_launch/{unique_name}"
 
-    abs_dir = STORAGE_PATH / rel_dir
-    abs_dir.mkdir(parents=True, exist_ok=True)
-
-    rel_path = f"{rel_dir}/{unique_name}"
-    abs_path = abs_dir / unique_name
-
-    with open(abs_path, "wb") as f:
-        f.write(content)
+    upload_file(object_key, content, content_type)
 
     attachment_type = MIME_TO_TYPE.get(content_type, AttachmentType.OTHER)
 
@@ -77,7 +68,7 @@ async def _save_upload(
         test_item_id=item_id,
         launch_id=launch_id,
         file_name=filename,
-        file_path=rel_path,
+        file_path=object_key,
         file_size=len(content),
         content_type=content_type,
         attachment_type=attachment_type,
@@ -140,13 +131,11 @@ def serve_attachment(attachment_id: int, db: Session = Depends(get_db)):
     attachment = db.query(Attachment).filter(Attachment.id == attachment_id).first()
     if not attachment:
         raise HTTPException(status_code=404, detail="Attachment not found")
-    abs_path = STORAGE_PATH / attachment.file_path
-    if not abs_path.exists():
-        raise HTTPException(status_code=404, detail="File not found on disk")
-    return FileResponse(
-        path=str(abs_path),
-        media_type=attachment.content_type,
-        filename=attachment.file_name,
+    data, content_type = download_file(attachment.file_path)
+    return Response(
+        content=data,
+        media_type=content_type,
+        headers={"Content-Disposition": f'inline; filename="{attachment.file_name}"'},
     )
 
 
@@ -155,8 +144,6 @@ def delete_attachment(attachment_id: int, db: Session = Depends(get_db)):
     attachment = db.query(Attachment).filter(Attachment.id == attachment_id).first()
     if not attachment:
         raise HTTPException(status_code=404, detail="Attachment not found")
-    abs_path = STORAGE_PATH / attachment.file_path
-    if abs_path.exists():
-        abs_path.unlink()
+    delete_file(attachment.file_path)
     db.delete(attachment)
     db.commit()

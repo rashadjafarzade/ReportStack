@@ -14,3 +14,14 @@ export interface TestHistoryEntry {
 
 export const getTestHistory = (testName: string, limit: number = 20) =>
   api.get<TestHistoryEntry[]>("/items/history", { params: { name: testName, limit } });
+
+export interface MostFailedTest {
+  name: string;
+  failed_runs: number;
+  total_runs: number;
+  failure_rate: number;
+  last_failure: string | null;
+}
+
+export const getMostFailed = (limit: number = 50) =>
+  api.get<MostFailedTest[]>("/items/most-failed", { params: { limit } });
