@@ -1,3 +1,6 @@
+from datetime import datetime
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -55,8 +58,15 @@ def create_test_items_batch(launch_id: int, data: TestItemBatchCreate, db: Sessi
 @router.get("/", response_model=list[TestItemResponse])
 def list_test_items(
     launch_id: int,
-    status: TestStatus | None = None,
-    suite: str | None = None,
+    status: Optional[TestStatus] = None,
+    suite: Optional[str] = None,
+    name: Optional[str] = None,
+    duration_min: Optional[int] = Query(None, description="Min duration in ms"),
+    duration_max: Optional[int] = Query(None, description="Max duration in ms"),
+    start_from: Optional[datetime] = Query(None, description="Start time >= (ISO 8601)"),
+    start_to: Optional[datetime] = Query(None, description="Start time <= (ISO 8601)"),
+    sort_by: Optional[str] = Query("start_time", description="Sort field: start_time, duration_ms, name, status"),
+    sort_dir: Optional[str] = Query("asc", description="Sort direction: asc or desc"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -67,6 +77,28 @@ def list_test_items(
         query = query.filter(TestItem.status == status)
     if suite:
         query = query.filter(TestItem.suite == suite)
+    if name:
+        query = query.filter(TestItem.name.ilike(f"%{name}%"))
+    if duration_min is not None:
+        query = query.filter(TestItem.duration_ms >= duration_min)
+    if duration_max is not None:
+        query = query.filter(TestItem.duration_ms <= duration_max)
+    if start_from:
+        query = query.filter(TestItem.start_time >= start_from)
+    if start_to:
+        query = query.filter(TestItem.start_time <= start_to)
+
+    sort_column = {
+        "start_time": TestItem.start_time,
+        "duration_ms": TestItem.duration_ms,
+        "name": TestItem.name,
+        "status": TestItem.status,
+    }.get(sort_by, TestItem.start_time)
+    if sort_dir == "desc":
+        query = query.order_by(sort_column.desc())
+    else:
+        query = query.order_by(sort_column.asc())
+
     return query.offset((page - 1) * page_size).limit(page_size).all()
 
 

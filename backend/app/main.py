@@ -37,8 +37,34 @@ app.include_router(test_history.router)
 @app.on_event("startup")
 def on_startup():
     ensure_bucket()
+    _start_retention_scheduler()
+
+
+def _start_retention_scheduler():
+    """Run data retention cleanup on startup and every 24 hours."""
+    import threading
+    from app.services.retention import run_retention_cleanup
+
+    def _loop():
+        import time
+        while True:
+            run_retention_cleanup()
+            time.sleep(86400)  # 24 hours
+
+    t = threading.Thread(target=_loop, daemon=True)
+    t.start()
 
 
 @app.get("/api/v1/health")
 def health_check():
-    return {"status": "ok"}
+    from sqlalchemy import text
+    from app.database import SessionLocal
+    try:
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db.close()
+        db_ok = True
+    except Exception:
+        db_ok = False
+    status = "ok" if db_ok else "degraded"
+    return {"status": status, "database": "connected" if db_ok else "unreachable"}
