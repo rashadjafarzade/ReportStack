@@ -16,6 +16,8 @@ A self-hosted test automation reporting platform (similar to ReportPortal.io). I
 | Charts | Recharts | 3.8 |
 | AI | Ollama (local LLM) | mistral:7b default |
 | Plugin | pytest plugin | pytest >= 7.0 |
+| Storage | MinIO (S3-compatible) | latest |
+| Auth | JWT (PyJWT + passlib/bcrypt) | — |
 | Infra | Docker Compose | v3.8 |
 
 ## Architecture
@@ -32,9 +34,9 @@ A self-hosted test automation reporting platform (similar to ReportPortal.io). I
 └──────────────────┘     └──────────────┘     └──────────────┘
                               │
                          ┌────┴────┐
-                         │  Disk   │
-                         │ /data/  │
-                         │attachm. │
+                         │  MinIO  │
+                         │  :9000  │
+                         │ S3 obj  │
                          └─────────┘
 ```
 
@@ -53,7 +55,10 @@ automation-reports/
 │   │   │   ├── comments.py      # Item-level and launch-level comment CRUD
 │   │   │   ├── defects.py       # Defect CRUD with status management
 │   │   │   ├── members.py       # Project member CRUD with roles
-│   │   │   └── project_settings.py  # GET/PUT singleton project settings
+│   │   │   ├── project_settings.py  # GET/PUT singleton project settings
+│   │   │   ├── dashboards.py       # Dashboard CRUD with widget management
+│   │   │   ├── test_history.py     # Test history + most-failed endpoint
+│   │   │   └── auth.py             # JWT login/register/me/users
 │   │   ├── models/          # SQLAlchemy models
 │   │   │   ├── launch.py        # Launch (status, stats)
 │   │   │   ├── test_item.py     # TestItem (status, error, trace) + relationships to comments/defects
@@ -63,7 +68,8 @@ automation-reports/
 │   │   │   ├── comment.py       # Comment (author, text, test_item/launch)
 │   │   │   ├── defect.py        # Defect (summary, status, external link)
 │   │   │   ├── member.py        # Member (name, email, role)
-│   │   │   └── project_settings.py  # ProjectSettings singleton
+│   │   │   ├── project_settings.py  # ProjectSettings singleton
+│   │   │   └── user.py             # User (email, password, role) for auth
 │   │   ├── schemas/         # Pydantic request/response models
 │   │   │   ├── launch.py / test_item.py / log.py / attachment.py / analysis.py
 │   │   │   ├── comment.py       # CommentCreate, CommentUpdate, CommentResponse
@@ -71,11 +77,14 @@ automation-reports/
 │   │   │   ├── member.py        # MemberCreate, MemberUpdate, MemberResponse
 │   │   │   └── project_settings.py  # ProjectSettingsUpdate, ProjectSettingsResponse
 │   │   ├── services/
-│   │   │   └── ai_analyzer.py   # Ollama client, prompt engineering
+│   │   │   ├── ai_analyzer.py   # Ollama client, prompt engineering
+│   │   │   ├── storage.py       # MinIO S3 wrapper (upload/download/delete)
+│   │   │   ├── auth.py          # JWT token creation/validation, password hashing
+│   │   │   └── retention.py     # Data retention cleanup daemon
 │   │   ├── database.py      # Engine, session, Base
 │   │   └── main.py          # App setup, CORS, router registration
 │   ├── migrations/
-│   │   └── versions/        # 001_logs, 002_attachments, 003_analyses, 004_comments_defects, 005_members_settings
+│   │   └── versions/        # 001-010: logs, attachments, analyses, comments_defects, members_settings, retention, dashboards, launch_tags, users, retry_tracking
 │   ├── requirements.txt
 │   ├── Dockerfile
 │   ├── alembic.ini
@@ -91,7 +100,8 @@ automation-reports/
 │   │   │   ├── comments.ts     # getItemComments, createItemComment, deleteComment
 │   │   │   ├── defects.ts      # getItemDefects, createItemDefect, updateDefect, deleteDefect
 │   │   │   ├── members.ts      # getMembers, addMember, updateMemberRole, removeMember
-│   │   │   └── settings.ts     # getSettings, updateSettings
+│   │   │   ├── settings.ts     # getSettings, updateSettings
+│   │   │   └── auth.ts         # login, register, getMe, updateProfile
 │   │   ├── components/      # Reusable UI components
 │   │   │   ├── StatusBadge.tsx
 │   │   │   ├── StatsBar.tsx
@@ -103,12 +113,15 @@ automation-reports/
 │   │   │   ├── CommentSection.tsx   # Comment list with avatars, add/delete
 │   │   │   ├── DefectPanel.tsx      # Defect list with status dropdowns
 │   │   │   └── DefectSelector.tsx   # ReportPortal-style defect type selector with AI suggestions
+│   │   ├── context/
+│   │   │   └── AuthContext.tsx  # React auth context (user, token, setAuth, logout)
 │   │   ├── pages/
-│   │   │   ├── Dashboard.tsx    # Overview metrics dashboard
+│   │   │   ├── Dashboards.tsx   # Widget-based dashboard with dropdown selector
 │   │   │   ├── LaunchList.tsx   # Dashboard with metrics + table
 │   │   │   ├── LaunchDetail.tsx # Two-column layout: error/logs left, defect selector right
 │   │   │   ├── Members.tsx      # Team member table with role management
-│   │   │   └── Settings.tsx     # 9-tab settings page (ReportPortal-style)
+│   │   │   ├── Settings.tsx     # 9-tab settings page (ReportPortal-style)
+│   │   │   └── Login.tsx        # Login/Register form with auth
 │   │   ├── styles/
 │   │   │   ├── design-tokens.css    # CSS custom properties (colors, spacing, etc.)
 │   │   │   ├── components.css       # Full component class library
@@ -143,17 +156,20 @@ automation-reports/
 ```
 Launch (1) ──> (N) TestItem
   │                  │
-  │                  ├──> (N) TestLog         (ordered by order_index)
-  │                  ├──> (N) Attachment       (files on disk)
+  │ tags (JSON)      ├──> (N) TestLog         (ordered by order_index)
+  │                  ├──> (N) Attachment       (MinIO S3 objects)
   │                  ├──> (N) FailureAnalysis  (AI or manual)
   │                  ├──> (N) Comment          (author, text, timestamps)
-  │                  └──> (N) Defect           (summary, status, external link)
+  │                  ├──> (N) Defect           (summary, status, external link)
+  │                  └──> (0..1) TestItem      (retry_of self-ref FK)
   │
   ├──> (N) Attachment (launch-level)
   └──> (N) Comment    (launch-level)
 
+User (standalone)             # email, hashed_password, role (ADMIN/MANAGER/MEMBER/VIEWER)
 Member (standalone)           # name, email, role (ADMIN/MANAGER/MEMBER/VIEWER)
 ProjectSettings (singleton)   # project config (name, retention, AI, notifications)
+Dashboard (1) ──> (N) Widget  # configurable widget grids
 ```
 
 ### Key Enums
@@ -169,17 +185,24 @@ ProjectSettings (singleton)   # project config (name, retention, AI, notificatio
 ## API Endpoints (all under /api/v1)
 
 ### Launches
-- `POST /launches/` — create
-- `GET /launches/` — list (paginated)
+- `POST /launches/` — create (supports `tags` as JSON array)
+- `GET /launches/` — list (paginated, filter by `status`, `tag`, `name`)
 - `GET /launches/{id}` — get one
 - `PUT /launches/{id}/finish` — finish with status
 - `DELETE /launches/{id}` — delete
 
 ### Test Items
-- `POST /launches/{id}/items/` — create single
+- `POST /launches/{id}/items/` — create single (supports `retry_of`)
 - `POST /launches/{id}/items/batch` — create batch
-- `GET /launches/{id}/items/` — list (filter by status, suite)
+- `GET /launches/{id}/items/` — list (filter by status, suite, name, duration_min/max, start_from/to; sort by start_time/duration_ms/name/status)
 - `GET /launches/{id}/items/{item_id}` — get one
+- `GET /launches/{id}/items/{item_id}/retries` — get retry chain
+- `POST /launches/{id}/items/bulk-update` — bulk status update
+- `POST /launches/{id}/items/bulk-defect` — bulk defect assignment
+- `POST /launches/{id}/items/bulk-analyze` — bulk AI analysis (202)
+
+### Test History
+- `GET /items/most-failed` — aggregated most-failed tests across launches
 
 ### Logs
 - `POST /launches/{id}/items/{item_id}/logs/` — create single
@@ -190,8 +213,8 @@ ProjectSettings (singleton)   # project config (name, retention, AI, notificatio
 - `POST /launches/{id}/items/{item_id}/attachments` — upload file (multipart, 20MB max)
 - `POST /launches/{id}/attachments` — launch-level upload
 - `GET /launches/{id}/items/{item_id}/attachments` — list
-- `GET /attachments/{id}/file` — serve file (FileResponse)
-- `DELETE /attachments/{id}` — delete file + DB record
+- `GET /attachments/{id}/file` — serve file (from MinIO)
+- `DELETE /attachments/{id}` — delete file from MinIO + DB record
 
 ### AI Analysis
 - `POST /launches/{id}/analyze` — trigger all failures (BackgroundTasks, 202)
@@ -223,6 +246,23 @@ ProjectSettings (singleton)   # project config (name, retention, AI, notificatio
 ### Project Settings
 - `GET /settings/` — get settings (auto-creates with defaults)
 - `PUT /settings/` — update settings
+
+### Auth
+- `POST /auth/register` — create user, return JWT token
+- `POST /auth/login` — verify credentials, return JWT token
+- `GET /auth/me` — get current user (requires auth)
+- `PUT /auth/me` — update own name
+- `GET /auth/users` — list all users (ADMIN only)
+- `PUT /auth/users/{id}` — update role/active status (ADMIN only)
+
+### Dashboards
+- `GET /dashboards/` — list dashboards
+- `POST /dashboards/` — create dashboard
+- `GET /dashboards/{id}` — get dashboard with widgets
+- `PUT /dashboards/{id}` — update dashboard
+- `DELETE /dashboards/{id}` — delete dashboard
+- `POST /dashboards/{id}/widgets` — add widget
+- `DELETE /dashboards/{id}/widgets/{widget_id}` — remove widget
 
 ## Frontend Design System
 
@@ -324,7 +364,9 @@ docker compose exec ollama ollama pull mistral:7b
 python3 backend/seed_data.py  # optional demo data
 ```
 
-Services: db (:5432), backend (:8000), frontend (:3000), ollama (:11434), bot (Telegram polling)
+Services: db (:5432), minio (:9000/:9001), backend (:8000), frontend (:3000), ollama (:11434), bot (Telegram polling)
+
+Docker healthchecks are configured with `condition: service_healthy` for startup ordering.
 
 GPU: Ollama uses nvidia GPU if available. Remove `deploy.resources` block for CPU-only.
 
