@@ -19,11 +19,15 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=409, detail="Email already registered")
 
+    # First user becomes ADMIN automatically
+    user_count = db.query(User).count()
+    role = MemberRole.ADMIN if user_count == 0 else data.role
+
     user = User(
         email=data.email,
         name=data.name,
         hashed_password=hash_password(data.password),
-        role=data.role,
+        role=role,
     )
     db.add(user)
     db.commit()
