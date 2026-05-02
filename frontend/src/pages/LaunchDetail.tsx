@@ -662,7 +662,7 @@ const LaunchDetail: React.FC = () => {
       </div>
 
       <div className="metrics-row" style={{ marginTop: 24 }}>
-        <MetricCard label="Total tests" value={launch.total} color="#6366f1" sub={`${Array.from(new Set(items.map((i) => i.suite).filter(Boolean))).length} suites`}
+        <MetricCard label="Total tests" value={launch.total} color="var(--color-primary, #1e40af)" sub={`${Array.from(new Set(items.map((i) => i.suite).filter(Boolean))).length} suites`}
           onClick={() => focusStatus("ALL")} active={tab === "tests" && statusFilter === "ALL"}
           icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11H5a2 2 0 0 0-2 2v7h18v-7a2 2 0 0 0-2-2h-4" /><rect x="9" y="3" width="6" height="11" rx="1" /></svg>}
         />
