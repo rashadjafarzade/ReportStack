@@ -8,7 +8,6 @@ import Settings from "./pages/Settings";
 import TestDetail from "./pages/TestDetail";
 import Profile from "./pages/Profile";
 import Dashboards from "./pages/Dashboards";
-import DashboardView from "./pages/DashboardView";
 import Trends from "./pages/Trends";
 import "./styles/design-tokens.css";
 import "./styles/components.css";
@@ -162,7 +161,6 @@ function App() {
               <Route path="/settings" element={<Settings />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/dashboards" element={<Dashboards />} />
-              <Route path="/dashboards/:id" element={<DashboardView />} />
               <Route path="/trends" element={<Trends />} />
             </Routes>
           </div>
