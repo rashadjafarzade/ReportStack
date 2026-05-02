@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login, register } from "../api/auth";
 import { useAuth } from "../context/AuthContext";
+import logo from "../logo.svg";
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -34,8 +35,11 @@ const Login: React.FC = () => {
     <div className="login-page">
       <div className="login-card">
         <div className="login-logo">
-          <div className="sidebar-logo-icon" style={{ width: 48, height: 48, fontSize: 18 }}>RS</div>
-          <h1 style={{ margin: "12px 0 4px", fontSize: 24, fontWeight: 700 }}>ReportStack</h1>
+          <img
+            src={logo}
+            alt="ReportStack"
+            style={{ height: 44, width: "auto", display: "block", marginBottom: 12 }}
+          />
           <p style={{ color: "var(--color-text-muted)", fontSize: 13, margin: 0 }}>
             {isRegister ? "Create your account" : "Sign in to your account"}
           </p>

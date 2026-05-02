@@ -30,7 +30,13 @@ const Sidebar: React.FC = () => {
   return (
     <aside className="layout-sidebar">
       <div className="sidebar-logo">
-        <div className="sidebar-logo-icon">RS</div>
+        <div className="sidebar-logo-icon" aria-label="ReportStack">
+          <svg width="22" height="16" viewBox="0 0 160 116" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <rect x="0" y="0" width="96" height="28" rx="8" fill="#60A5FA" />
+            <rect x="0" y="44" width="160" height="28" rx="8" fill="#FFFFFF" />
+            <rect x="0" y="88" width="128" height="28" rx="8" fill="#DBEAFE" />
+          </svg>
+        </div>
         <div className="sidebar-logo-text">ReportStack</div>
       </div>
       <nav className="sidebar-nav">
