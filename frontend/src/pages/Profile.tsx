@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from "react";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 
 const PROFILE_TABS = [
   { id: "keys", label: "API keys" },
@@ -145,6 +146,10 @@ const Profile: React.FC = () => {
   const [tab, setTab] = useState("keys");
   const [toast, setToast] = useState<string | null>(null);
   const { theme, setTheme } = useTheme();
+  const { user } = useAuth();
+
+  const initials = user ? user.name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2) : "??";
+  const displayRole = user?.role ? user.role.charAt(0) + user.role.slice(1).toLowerCase() : "Member";
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -162,13 +167,13 @@ const Profile: React.FC = () => {
         {/* Identity card */}
         <div className="profile-card">
           <div className="profile-avatar-row">
-            <div className="profile-avatar-large">JD</div>
+            <div className="profile-avatar-large">{initials}</div>
             <div className="profile-identity">
-              <h2 className="profile-name">Jane Doe</h2>
-              <div className="profile-role">Project Admin</div>
+              <h2 className="profile-name">{user?.name || "User"}</h2>
+              <div className="profile-role">{displayRole}</div>
               <div className="profile-email">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
-                jane@reportstack.local
+                {user?.email || "—"}
               </div>
             </div>
           </div>
