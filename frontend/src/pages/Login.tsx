@@ -25,7 +25,16 @@ const Login: React.FC = () => {
       setAuth(res.data.access_token, res.data.user);
       navigate("/");
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Something went wrong");
+      const detail = err.response?.data?.detail;
+      if (typeof detail === "string") {
+        setError(detail);
+      } else if (Array.isArray(detail)) {
+        setError(detail.map((d: any) => d.msg || d).join("; "));
+      } else if (err.message) {
+        setError(err.message);
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
     } finally {
       setSubmitting(false);
     }
