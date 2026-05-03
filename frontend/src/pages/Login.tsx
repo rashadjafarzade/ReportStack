@@ -54,7 +54,7 @@ const Login: React.FC = () => {
                 type="text"
                 value={name}
                 onChange={e => setName(e.target.value)}
-                placeholder="Jane Doe"
+                placeholder="Firstname Lastname"
                 required
               />
             </div>
