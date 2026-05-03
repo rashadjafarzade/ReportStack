@@ -2,6 +2,11 @@
 
 A pytest-native framework guide for testing Linux radio devices with
 ReportStack reporting. Companion to test_framework_starter/.
+
+Markdown twin: ReportStack_pytest_Framework_Guide.md (same chapters, GFM
+syntax). When you change content here, mirror the change there. The .md is
+the readable / grep-able / GitHub-rendered form; the .docx is the polished
+deliverable. Both should stay in sync.
 """
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
