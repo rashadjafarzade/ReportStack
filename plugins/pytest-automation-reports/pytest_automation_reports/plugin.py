@@ -25,10 +25,10 @@ def pytest_configure(config):
     config.pluginmanager.register(plugin, "automation-reports")
 
 
-@pytest.hookimpl(wrapper=True)
+@pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
-    report = yield
-    rep = report.get_result()
+    outcome = yield
+    rep = outcome.get_result()
     if not hasattr(item, "_ar_reports"):
         item._ar_reports = []
     item._ar_reports.append(rep)
@@ -42,8 +42,6 @@ def pytest_runtest_makereport(item, call):
                 if not hasattr(item, "_ar_screenshots_extra"):
                     item._ar_screenshots_extra = []
                 item._ar_screenshots_extra.append(path)
-
-    return report
 
 
 class AutomationReportsPlugin:
