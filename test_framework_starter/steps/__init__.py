@@ -1,15 +1,11 @@
-"""Step definitions — composable business operations.
+"""Step definitions — composable business operations across all three layers.
 
-This is the layer where individual radio commands compose into
-test-relevant verbs ("bring the radio up at 433 MHz", "wait until lock").
-Tests stay small and readable; transport details stay in radios/.
+api_steps  — verbs against the radio-backend HTTP API
+web_steps  — verbs against the TNC web UI via Selenium
+nfr_steps  — measurement / overload helpers used by NFR tests
+radio_steps — low-level SSH/serial helpers (kept from the original starter
+              for fixture setup and lab bring-up; not used by mainstream tests)
 """
-from steps.power import bring_up, shut_down
-from steps.tune import tune_and_wait_for_lock
-from steps.measure import measure_rssi_average
+from steps import api_steps, nfr_steps, web_steps
 
-__all__ = [
-    "bring_up", "shut_down",
-    "tune_and_wait_for_lock",
-    "measure_rssi_average",
-]
+__all__ = ["api_steps", "nfr_steps", "web_steps"]

@@ -1,14 +1,9 @@
 """Root conftest — fixtures and hooks shared by every test.
 
-Replaces Osprey's DTVNBaseTest @BeforeSuite / @BeforeMethod hierarchy.
-Pytest fixtures are composable and explicit, so there's no inheritance —
-tests opt into the fixtures they need.
-
-Key responsibilities:
-1. Read CLI flags that point at a real device.
-2. Build a session-scoped RadioDevice fixture (one device per pytest run).
-3. On test failure, attach diagnostic data (lock state, RSSI) so the
-   ReportStack analyzer has something to classify on.
+Three layers, three fixtures:
+  - api_client      Radio devices' backend HTTP client
+  - web_driver      Selenium WebDriver for the TNC web UI
+  - radio (legacy)  Direct SSH/serial control — only for lab bring-up
 """
 from __future__ import annotations
 
@@ -18,50 +13,145 @@ from typing import Iterator
 
 import pytest
 
-from commands.loader import load_catalog
-from radios.base import RadioDevice
-from radios.serial_radio import SerialRadio
-from radios.ssh_radio import SSHRadio
 
-
-# ---- CLI flags -------------------------------------------------------------
+# ============================================================================
+# CLI flags
+# ============================================================================
 def pytest_addoption(parser: pytest.Parser) -> None:
-    g = parser.getgroup("radio device")
-    g.addoption("--device-host", action="store", default=None,
-                help="SSH host for the radio (e.g. 10.0.0.42). Mutually exclusive with --device-serial-port.")
-    g.addoption("--device-user", action="store", default="root",
-                help="SSH username. Default 'root'.")
-    g.addoption("--device-key", action="store", default=None,
-                help="Path to SSH private key. Default uses the agent.")
-    g.addoption("--device-serial-port", action="store", default=None,
-                help="Serial port (e.g. /dev/ttyUSB0). Mutually exclusive with --device-host.")
-    g.addoption("--device-serial-baud", action="store", type=int, default=115200,
-                help="Serial baud rate. Default 115200.")
-    g.addoption("--device-cmds", action="store",
-                default=str(Path(__file__).parent / "commands" / "examples" / "wnc_radio.json"),
-                help="Path to the JSON command catalog for this device.")
+    api = parser.getgroup("radio backend (api layer)")
+    api.addoption("--api-url", default=None,
+                  help="Base URL of the radio devices' backend (e.g. http://radio-backend.lab:8080)")
+    api.addoption("--api-token", default=None,
+                  help="Bearer token for the backend; or set RADIO_BACKEND_TOKEN env var")
+    api.addoption("--radio-id", default="radio-001",
+                  help="Default radio identifier used by example tests")
+
+    web = parser.getgroup("TNC web (ui layer)")
+    web.addoption("--tnc-url", default=None,
+                  help="Base URL of the TNC web application (e.g. http://tnc.lab)")
+    web.addoption("--tnc-user", default=None, help="TNC login email")
+    web.addoption("--tnc-pass", default=None, help="TNC login password")
+    web.addoption("--browser", default="chrome",
+                  choices=("chrome", "firefox"),
+                  help="Selenium browser. Default chrome.")
+    web.addoption("--headless", action="store_true", default=True,
+                  help="Run browser headless. Default true.")
+
+    legacy = parser.getgroup("radio (legacy SSH/serial — bring-up only)")
+    legacy.addoption("--device-host", default=None)
+    legacy.addoption("--device-user", default="root")
+    legacy.addoption("--device-key", default=None)
+    legacy.addoption("--device-serial-port", default=None)
+    legacy.addoption("--device-serial-baud", default=115200, type=int)
+    legacy.addoption("--device-cmds", default=None,
+                     help="Path to the JSON command catalog (legacy radios/ layer)")
 
 
-# ---- session-scoped device -------------------------------------------------
+# ============================================================================
+# api fixture — primary backend client
+# ============================================================================
 @pytest.fixture(scope="session")
-def radio(request: pytest.FixtureRequest) -> Iterator[RadioDevice]:
-    """One radio per pytest session.
+def api_client(request: pytest.FixtureRequest):
+    from api_client import RadioBackendClient
+    url = request.config.getoption("--api-url")
+    if not url:
+        pytest.skip("no --api-url given")
+    token = (
+        request.config.getoption("--api-token")
+        or os.getenv("RADIO_BACKEND_TOKEN")
+    )
+    with RadioBackendClient(base_url=url, token=token) as client:
+        yield client
 
-    Configured by --device-host or --device-serial-port. If neither is given,
-    skips the entire test session — make this an explicit error during CI by
-    setting --device-host on the command line.
+
+@pytest.fixture
+def radio_id(request: pytest.FixtureRequest) -> str:
+    return request.config.getoption("--radio-id")
+
+
+# ============================================================================
+# web fixture — Selenium driver
+# ============================================================================
+@pytest.fixture(scope="session")
+def web_driver(request: pytest.FixtureRequest) -> Iterator[object]:
+    """One headless browser per pytest session, reused by every UI test.
+
+    Per-test isolation comes from clearing cookies/storage at the start of
+    each test; opening a fresh driver per test would cost ~2s each.
     """
+    tnc_url = request.config.getoption("--tnc-url")
+    if not tnc_url:
+        pytest.skip("no --tnc-url given")
+
+    from selenium import webdriver  # type: ignore
+    browser = request.config.getoption("--browser")
+    headless = request.config.getoption("--headless")
+    if browser == "chrome":
+        opts = webdriver.ChromeOptions()
+        if headless:
+            opts.add_argument("--headless=new")
+        opts.add_argument("--no-sandbox")
+        opts.add_argument("--disable-dev-shm-usage")
+        driver = webdriver.Chrome(options=opts)
+    else:
+        opts = webdriver.FirefoxOptions()
+        if headless:
+            opts.add_argument("-headless")
+        driver = webdriver.Firefox(options=opts)
+    driver.set_window_size(1280, 800)
+    try:
+        yield driver
+    finally:
+        driver.quit()
+
+
+@pytest.fixture
+def tnc_url(request: pytest.FixtureRequest) -> str:
+    return request.config.getoption("--tnc-url")
+
+
+@pytest.fixture
+def tnc_credentials(request: pytest.FixtureRequest) -> tuple[str, str]:
+    user = request.config.getoption("--tnc-user")
+    pw = request.config.getoption("--tnc-pass")
+    if not (user and pw):
+        pytest.skip("--tnc-user / --tnc-pass not provided")
+    return user, pw
+
+
+@pytest.fixture
+def fresh_session(web_driver):
+    """Clear cookies + localStorage so each UI test starts logged-out."""
+    try:
+        web_driver.delete_all_cookies()
+        web_driver.execute_script("window.localStorage.clear();")
+        web_driver.execute_script("window.sessionStorage.clear();")
+    except Exception:
+        pass
+    yield web_driver
+
+
+# ============================================================================
+# legacy radio fixture — SSH / serial direct (bring-up only)
+# ============================================================================
+@pytest.fixture(scope="session")
+def radio(request: pytest.FixtureRequest):
+    """Direct SSH/serial control. Most tests should use api_client instead."""
+    from commands.loader import load_catalog
+    from radios.serial_radio import SerialRadio
+    from radios.ssh_radio import SSHRadio
+
     host = request.config.getoption("--device-host")
     serial_port = request.config.getoption("--device-serial-port")
     cmds_path = request.config.getoption("--device-cmds")
-    if not host and not serial_port:
+    if not (host or serial_port):
         pytest.skip("no --device-host or --device-serial-port given")
+    if not cmds_path:
+        pytest.skip("--device-cmds is required for the legacy radio fixture")
     catalog = load_catalog(cmds_path)
-    device: RadioDevice
     if host:
         device = SSHRadio(
-            name=host,
-            host=host,
+            name=host, host=host,
             username=request.config.getoption("--device-user"),
             key_filename=request.config.getoption("--device-key"),
             command_catalog=catalog,
@@ -77,15 +167,11 @@ def radio(request: pytest.FixtureRequest) -> Iterator[RadioDevice]:
         yield d
 
 
-# ---- test-result hook (capture-on-failure) ---------------------------------
+# ============================================================================
+# capture-on-failure
+# ============================================================================
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
-    """Stash test outcome on the item so post-test fixtures can react to it.
-
-    Equivalent of Osprey's FailListener.onTestFailure. The
-    pytest-automation-reports plugin reads this attribute to decide whether
-    to upload diagnostics with the test result.
-    """
     outcome = yield
     report = outcome.get_result()
     setattr(item, f"rep_{report.when}", report)
@@ -93,32 +179,30 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
 
 @pytest.fixture(autouse=True)
 def attach_diagnostics_on_fail(request: pytest.FixtureRequest):
-    """If the test fails, snapshot the radio's state and attach it.
-
-    Called before each test (autouse). After the test runs, we check the
-    'rep_call' report — if it's a failure, we ask the device for its current
-    lock + RSSI + temperature and stash them as a JSON attachment that the
-    pytest-automation-reports plugin will upload.
-    """
+    """On failure, attach a screenshot (UI tests) or a status snapshot
+    (API tests) so the ReportStack analyzer has something to classify on."""
     yield
     rep = getattr(request.node, "rep_call", None)
     if rep is None or rep.passed:
         return
-    # Best-effort: if the radio fixture wasn't requested, skip.
-    if "radio" not in request.fixturenames:
-        return
-    device: RadioDevice = request.getfixturevalue("radio")
-    snapshot: dict[str, object] = {"name": device.name}
-    for key in ("read_lock_state", "read_rssi", "read_temperature"):
-        if key in device.commands:
-            try:
-                snapshot[key] = device.cmd(key.replace("read_", "")).stdout.strip()
-            except Exception as e:
-                snapshot[key] = f"<error: {e}>"
-    # Stash as a JSON file the AR plugin will pick up.
-    out = Path(getattr(request.config, "_ar_attachment_dir", "/tmp")) / f"diag_{request.node.name}.json"
-    try:
-        import json
-        out.write_text(json.dumps(snapshot, indent=2))
-    except Exception:
-        pass  # never let diagnostic capture mask the original failure
+
+    out_dir = Path(getattr(request.config, "_ar_attachment_dir", "/tmp"))
+    name = request.node.name
+
+    # UI failure -> screenshot
+    if "web_driver" in request.fixturenames:
+        try:
+            driver = request.getfixturevalue("web_driver")
+            driver.save_screenshot(str(out_dir / f"fail_{name}.png"))
+        except Exception:
+            pass
+
+    # API failure -> status snapshot
+    if "api_client" in request.fixturenames:
+        try:
+            client = request.getfixturevalue("api_client")
+            rid = request.config.getoption("--radio-id")
+            snapshot = client.get_status(rid)
+            (out_dir / f"fail_{name}.json").write_text(str(snapshot))
+        except Exception:
+            pass

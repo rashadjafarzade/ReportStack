@@ -1,0 +1,8 @@
+{
+  "radio_list":         { "by": "css", "value": "table.radios tbody" },
+  "radio_row_by_id":    { "by": "css", "value": "table.radios tr[data-radio-id='{id}']" },
+  "freq_input":         { "by": "css", "value": "input[name='frequency_mhz']" },
+  "freq_apply_button":  { "by": "css", "value": "button[data-action='apply-frequency']" },
+  "freq_readout":       { "by": "css", "value": "[data-testid='freq-readout']" },
+  "lock_status":        { "by": "css", "value": "[data-testid='lock-status']" }
+}

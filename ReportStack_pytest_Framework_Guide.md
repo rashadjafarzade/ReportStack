@@ -43,12 +43,21 @@ from the Osprey/TestNG framework analysis (where the layered architecture and
 team-based suite organization come from) but replaces every Java, Maven,
 TestNG, and AspectJ component with its idiomatic pytest equivalent.
 
-The framework deliberately keeps four invariants from Osprey:
+The framework covers **three test layers**:
 
-- **Separation of concerns** — Tests → Steps → Devices → Commands.
-- **Configuration over code** — JSON command catalogs, marker-based suite selection, runtime CLI flags for device endpoints.
-- **Team-based test organization** — markers like `team_allstars` and `team_gogeta` let multiple teams share one repo.
+- **UI** — the TNC web application, driven by Selenium.
+- **API** — the radio devices' backend, driven by httpx.
+- **NFR** — non-functional requirements in three flavours: performance, stress, reliability.
+
+It deliberately keeps three invariants from Osprey:
+
+- **Separation of concerns** — Tests → Steps → Clients/Pages → Catalogs.
+- **Configuration over code** — JSON locator/command catalogs, marker-based suite selection, runtime CLI flags for endpoints.
 - **Multi-level reporting** — execution logs + screenshots + diagnostic snapshots + AI classification, all visible in the ReportStack dashboard.
+
+It deliberately drops one:
+
+- **Team-based test organization** — Osprey split work across teams (AllStars, Gogeta, XTeam, …) via per-team suite XMLs. This framework has one general team. There are no `team_*` or per-feature markers; tests are organised by the layer they target (`ui`, `api`, `nfr`) and the kind of run (`smoke`, `regression`).
 
 And changes everything else:
 
@@ -89,37 +98,51 @@ And changes everything else:
 ## 3. Project structure
 
 The starter project layout — see `test_framework_starter/` in this repo for
-the actual files.
+the actual files. Three layers, three modules:
 
 ```
 test_framework_starter/
 ├── pyproject.toml          # deps + project metadata
 ├── pytest.ini              # marker registry + addopts
-├── conftest.py             # root fixtures + ReportStack hooks
-├── radios/                 # device abstractions
-│   ├── base.py             # RadioDevice abstract base + CommandResult
-│   ├── ssh_radio.py        # paramiko-backed SSHRadio
-│   └── serial_radio.py     # pyserial-backed SerialRadio
-├── commands/               # JSON command catalogs
-│   ├── loader.py           # validates required keys
-│   └── examples/
-│       ├── wnc_radio.json
-│       └── generic_linux.json
-├── steps/                  # composable business operations
-│   ├── power.py            # bring_up, shut_down
-│   ├── tune.py             # tune_and_wait_for_lock
-│   └── measure.py          # measure_rssi_average
-└── tests/
-    ├── conftest.py         # test-scoped fixtures (radio_up)
-    ├── test_smoke.py       # smoke + parametrized tune tests
-    ├── test_regression.py  # regression tests with team markers
-    └── test_kpi.py         # lock-time KPI w/ threshold assertion
+├── conftest.py             # session fixtures: api_client, web_driver, radio
+│
+├── api_client/             # primary backend test surface (httpx)
+│   ├── base.py             # BaseClient — auth, retries, error wrapping
+│   └── radio_backend.py    # RadioBackendClient — high-level radio endpoints
+│
+├── web/                    # TNC web app page objects (Selenium)
+│   ├── base.py             # BasePage — explicit waits, locator catalog hook
+│   ├── tnc_pages.py        # LoginPage, DashboardPage, RadioControlPage
+│   └── locators/           # JSON locator catalogs (one per page)
+│       ├── login.json
+│       ├── dashboard.json
+│       └── radio_control.json
+│
+├── radios/                 # legacy SSH/serial direct control (bring-up only)
+│   ├── base.py             # RadioDevice abstract base
+│   ├── ssh_radio.py        # paramiko-backed
+│   └── serial_radio.py     # pyserial-backed
+│
+├── commands/               # JSON command catalogs for the legacy radios layer
+│
+├── steps/                  # composable verbs across all three layers
+│   ├── api_steps.py        # bring_up, shut_down, tune_and_wait_for_lock
+│   ├── web_steps.py        # sign_in, open_radio_control, set_frequency_via_ui
+│   └── nfr_steps.py        # measure_call_latency, hammer_endpoint, repeated_cycle
+│
+└── tests/                  # one file per kind, markers do the slicing
+    ├── conftest.py
+    ├── test_smoke.py            # smoke + (ui|api)
+    ├── test_regression.py       # regression + (ui|api)
+    ├── test_nfr_performance.py  # nfr + nfr_performance
+    ├── test_nfr_stress.py       # nfr + nfr_stress
+    └── test_nfr_reliability.py  # nfr + nfr_reliability
 ```
 
-> **Tip** — `tests/` is a flat folder. Per-team or per-feature breakdowns
-> happen via markers (`team_allstars`, `feature_tune`), not directories.
-> This avoids the duplication-by-folder problem Osprey ran into with 70+
-> feature suite XMLs.
+> **Tip** — `tests/` is intentionally flat. The marker triple
+> `(layer, nfr-subtype, kind)` is enough to slice the suite for any CI
+> need. This avoids the duplication-by-folder problem Osprey ran into with
+> 70+ per-feature suite XMLs.
 
 ---
 
@@ -270,18 +293,31 @@ pytest -n 2 -m smoke \
 
 ## 7. Test categories and marker taxonomy
 
-Three orthogonal axes — **kind**, **team**, **feature**. Combine them with
-boolean expressions on the command line.
+Three orthogonal axes — **layer**, **NFR sub-type**, **kind**. Combine them
+with boolean expressions on the command line. There are no team or feature
+markers — the framework assumes one general team owns the suite.
 
 | Axis | Markers | Example |
 |---|---|---|
-| Kind | `smoke`, `regression`, `kpi`, `nfr`, `stress` | `pytest -m smoke` |
-| Team | `team_allstars`, `team_gogeta`, `team_xteam` | `pytest -m "regression and team_allstars"` |
-| Feature | `feature_tune`, `feature_power`, `feature_measure` | `pytest -m "smoke and feature_tune"` |
-| Speed | `slow` | `pytest -m "regression and not slow"` |
+| Layer (system under test) | `ui`, `api`, `nfr` | `pytest -m "smoke and ui"` |
+| NFR sub-type (only with `nfr`) | `nfr_performance`, `nfr_stress`, `nfr_reliability` | `pytest -m "nfr and nfr_performance"` |
+| Kind | `smoke`, `regression`, `slow` | `pytest -m "regression and not slow"` |
 
-> **Tip** — Stop creating new test files for each suite. With markers, one
-> `regression.py` can serve every team via `@pytest.mark.team_xxx`.
+Practical combinations:
+
+```bash
+pytest -m smoke                            # everything fast across all layers
+pytest -m "ui and regression"              # full UI regression
+pytest -m "api and not slow"               # API tests, skip the slow ones
+pytest -m "nfr and nfr_performance"        # latency / throughput KPIs
+pytest -m "nfr and nfr_stress"             # overload behaviour
+pytest -m "nfr and nfr_reliability"        # long-running stability
+pytest -m "(ui or api) and smoke"          # both layers, smoke only
+```
+
+> **Tip** — Strict markers are on by default (`addopts = --strict-markers`).
+> A typo'd marker name fails collection rather than silently skipping the
+> test.
 
 ---
 
@@ -406,31 +442,71 @@ ReportStack doesn't reach into your tracker, it just links out.
 
 ---
 
-## 12. Performance KPIs
+## 12. Performance KPIs (under the `nfr_performance` marker)
 
-Radio-relevant KPIs supersede Osprey's TV-specific ones. Each KPI test
+KPIs are the numeric thresholds asserted under `nfr_performance`. Each test
 measures a value, attaches it to the test item via `user_properties`, and
 asserts a threshold. The Trends widget plots the value across launches.
 
 | KPI | Measured value | Suggested threshold |
 |---|---|---|
-| Lock time at 433 MHz | Seconds from `tune()` to `is_locked()=true` | < 2.0 s |
-| Channel switch time | Seconds between two `tune()` calls reaching lock | < 1.0 s |
-| Power-on to first response | Seconds from `power_on` to first responsive cmd | < 5.0 s |
+| Lock time at 433 MHz | Seconds from `set_frequency()` to `is_locked()=true` | < 2.0 s |
+| GET /status p95 latency | 95th percentile of 50 single-caller status calls | < 50 ms |
+| Channel switch time | Seconds between two `set_frequency()` calls reaching lock | < 1.0 s |
+| Power-on to first response | Seconds from `power_on` to status endpoint responding | < 5.0 s |
 | RSSI stability (median over 60 s) | Standard deviation of dBm samples | < 3 dB |
-| Bit error rate (when supported) | Fraction of erroneous bits | < 1e-5 |
-| Reboot recovery time | Seconds from reboot to lock at known frequency | < 30 s |
+| Reboot recovery time | Seconds from reboot endpoint to lock at known frequency | < 30 s |
 
 ### Reporting a KPI
 
 ```python
-@pytest.mark.kpi
-def test_lock_time_at_433mhz_under_2s(radio_up, request):
-    elapsed = tune_and_wait_for_lock(radio_up, 433.92, timeout_seconds=5.0)
+@pytest.mark.nfr
+@pytest.mark.nfr_performance
+def test_perf_lock_time_at_433mhz_under_2s(api_radio_up, request):
+    client, rid = api_radio_up
+    elapsed = tune_and_wait_for_lock(client, rid, 433.92, timeout_seconds=5.0)
     request.node.user_properties.append(
         ("kpi:lock_time_433_seconds", elapsed)
     )
     assert elapsed < 2.0
+```
+
+### NFR — stress (`nfr_stress`)
+
+Concurrent workload + malformed payloads. Backend should serve correctly
+under N workers, or fail fast with proper status codes — no hangs, no
+5xx storms.
+
+```python
+@pytest.mark.nfr
+@pytest.mark.nfr_stress
+def test_stress_status_under_8_concurrent_callers(api_client, radio_id):
+    counts = hammer_endpoint(
+        lambda: api_client.get_status(radio_id),
+        workers=8, duration_seconds=10.0,
+    )
+    error_rate = counts["api_errors"] / max(counts["total"], 1)
+    assert error_rate < 0.01
+    assert counts["other_errors"] == 0
+```
+
+### NFR — reliability (`nfr_reliability`)
+
+Long-running stability. The two canonical shapes are *N cycles* and
+*sample-over-T-minutes*.
+
+```python
+@pytest.mark.nfr
+@pytest.mark.nfr_reliability
+@pytest.mark.slow
+def test_reliability_50_power_tune_cycles(api_client, radio_id, request):
+    succeeded = repeated_cycle(
+        setup=lambda: bring_up(api_client, radio_id),
+        action=lambda: tune_and_wait_for_lock(api_client, radio_id, 433.92, timeout_seconds=3.0),
+        cycles=50, fail_after=5,
+    )
+    request.node.user_properties.append(("kpi:reliability_cycles_passed", succeeded))
+    assert succeeded >= 48
 ```
 
 ---
@@ -538,31 +614,32 @@ pipeline {
 ## 17. Worked example — one full test, end to end
 
 A complete trace from CLI invocation to ReportStack dashboard. Assumes a
-radio at `10.0.0.42` with the `wnc_radio.json` catalog and the AR backend
-at `http://reports.local:8000`.
+radio backend at `http://radio-backend.lab:8080`, a radio identified as
+`radio-001`, and the AR backend at `http://reports.local:8000`.
 
 ### The invocation
 
 ```bash
-pytest test_framework_starter/tests/test_kpi.py \
+pytest test_framework_starter/tests/test_nfr_performance.py \
   --ar-url=http://reports.local:8000/api/v1 \
   --ar-launch-name="lock-time spot check" \
   --ar-tag=manual --ar-auto-analyze \
-  --device-host=10.0.0.42 --device-user=root \
-  --device-cmds=test_framework_starter/commands/examples/wnc_radio.json \
-  -m kpi
+  --api-url=http://radio-backend.lab:8080 \
+  --api-token=$RADIO_BACKEND_TOKEN \
+  --radio-id=radio-001 \
+  -m "nfr and nfr_performance"
 ```
 
 ### What happens
 
 1. The AR plugin POSTs to `/launches/` and remembers the launch ID.
-2. Pytest collects the kpi-marked test (`test_lock_time_at_433mhz_under_2s`).
-3. The session-scoped `radio` fixture opens an SSH connection to `10.0.0.42` and validates the command catalog.
-4. The test-scoped `radio_up` fixture calls `bring_up` — `power_on` then a 1.5 s settle.
-5. The test calls `tune_and_wait_for_lock(433.92, timeout_seconds=5.0)`; records 1.34 s.
+2. Pytest collects the two `nfr_performance` tests (status p95, lock time).
+3. The session-scoped `api_client` fixture opens an httpx client to the radio backend with the bearer token.
+4. The test-scoped `api_radio_up` fixture calls `bring_up(client, "radio-001")` — POSTs power-on, waits 1 s settle, GETs status to confirm responsiveness.
+5. The lock-time test calls `tune_and_wait_for_lock(client, "radio-001", 433.92, timeout_seconds=5.0)`; records 1.34 s.
 6. The test pushes `("kpi:lock_time_433_seconds", 1.34)` onto `user_properties`; asserts `< 2.0`.
 7. The AR plugin reports the test result + the KPI metric.
-8. Teardown — `radio_up` calls `shut_down`, the `radio` fixture closes the SSH session.
+8. Teardown — `api_radio_up` calls `shut_down`, the `api_client` fixture closes the HTTP connection pool.
 9. Session end — the AR plugin PUTs `/launches/{id}/finish` with status `PASSED`, then POSTs `/launches/{id}/analyze` (because `--ar-auto-analyze`).
 10. In the dashboard, the launch shows PASSED; the Trends page plots 1.34 s for the `kpi:lock_time_433_seconds` metric.
 

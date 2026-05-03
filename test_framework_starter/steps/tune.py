@@ -1,4 +1,5 @@
-"""Tuning steps."""
+"""Tuning steps — low-level SSH/serial fallback. See ``api_steps.py`` for the
+primary radio-backend HTTP API path."""
 from __future__ import annotations
 
 import time

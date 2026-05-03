@@ -1,0 +1,5 @@
+{
+  "user_menu":         { "by": "css", "value": "[data-testid='user-menu']" },
+  "radio_panel_link":  { "by": "link_text", "value": "Radios" },
+  "logout_button":     { "by": "css", "value": "[data-testid='logout']" }
+}

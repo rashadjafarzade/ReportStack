@@ -1,4 +1,5 @@
-"""Measurement steps — sample sensors and average them."""
+"""Measurement steps — low-level SSH/serial fallback. NFR measurement helpers
+that run against the HTTP backend live in ``steps/nfr_steps.py``."""
 from __future__ import annotations
 
 import statistics

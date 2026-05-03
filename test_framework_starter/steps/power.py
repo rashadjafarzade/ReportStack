@@ -1,4 +1,9 @@
-"""Power-cycle steps."""
+"""Power-cycle steps — low-level SSH/serial fallback.
+
+DEPRECATED for mainstream tests. The radio backend's HTTP API is the primary
+test target; use ``steps/api_steps.py`` instead. This module remains for lab
+bring-up scenarios where the backend is not available yet.
+"""
 from __future__ import annotations
 
 import time

@@ -1,39 +1,58 @@
-"""Regression tests — full functional coverage. Run nightly."""
+"""Regression tests — full functional coverage. Run nightly.
+
+Markers:  regression + (ui|api)
+Run:      pytest -m regression
+          pytest -m "regression and api and not slow"
+"""
 import pytest
 
-from steps import measure_rssi_average, tune_and_wait_for_lock
+from steps.api_steps import tune_and_wait_for_lock
+from steps.web_steps import open_radio_control, set_frequency_via_ui, sign_in
 
 
+# -------- API regression ---------------------------------------------------
 @pytest.mark.regression
-@pytest.mark.team_allstars
-@pytest.mark.feature_measure
-def test_rssi_within_expected_range_at_known_frequency(radio_up):
-    """At the lab's reference 433.92 MHz beacon, median RSSI should sit
-    in the [-90, -40] dBm window. Wider than typical floor noise but
-    tight enough to flag a regression in the AGC path."""
-    tune_and_wait_for_lock(radio_up, 433.92)
-    rssi = measure_rssi_average(radio_up, samples=5)
-    assert -90 <= rssi <= -40, f"RSSI {rssi} dBm outside [-90, -40]"
-
-
-@pytest.mark.regression
-@pytest.mark.team_gogeta
-@pytest.mark.feature_tune
-def test_rapid_retune_does_not_lose_lock(radio_up):
-    """Re-tune across three frequencies in quick succession; the radio
-    must lock on each. Catches firmware regressions where re-tuning
-    leaves the PLL in a bad state."""
+@pytest.mark.api
+def test_api_rapid_retune_holds_lock(api_radio_up):
+    """Re-tune across three frequencies in quick succession; the radio must
+    lock on each. Catches firmware regressions where re-tuning leaves the PLL
+    in a bad state."""
+    client, rid = api_radio_up
     for f in (433.92, 868.0, 433.92):
-        tune_and_wait_for_lock(radio_up, f, timeout_seconds=3.0)
+        tune_and_wait_for_lock(client, rid, f, timeout_seconds=3.0)
 
 
 @pytest.mark.regression
+@pytest.mark.api
+def test_api_status_reports_set_frequency(api_radio_up):
+    """After PUT /frequency, the next GET /status echoes the same freq."""
+    client, rid = api_radio_up
+    client.set_frequency(rid, 433.92)
+    status = client.get_status(rid)
+    assert abs(float(status["freq_mhz"]) - 433.92) < 0.001
+
+
+# -------- UI regression ----------------------------------------------------
+@pytest.mark.regression
+@pytest.mark.ui
+def test_ui_set_frequency_via_radio_panel(fresh_session, tnc_url, tnc_credentials, radio_id):
+    """End-to-end UI flow: log in, open the radio panel, change a frequency,
+    verify the readout updates."""
+    user, pw = tnc_credentials
+    dashboard = sign_in(fresh_session, base_url=tnc_url, email=user, password=pw)
+    radio_panel = open_radio_control(dashboard)
+    set_frequency_via_ui(radio_panel, radio_id, 433.92)
+    assert abs(radio_panel.reported_frequency_mhz() - 433.92) < 0.001
+
+
+@pytest.mark.regression
+@pytest.mark.ui
 @pytest.mark.slow
-def test_bringup_shutdown_cycle_repeated(radio_up):
-    """Power-cycle the radio 10 times; lock must succeed every time.
-    Slow (~60s); slow marker so smoke runs can exclude it via -m 'not slow'."""
-    from steps import bring_up, shut_down
-    for i in range(10):
-        shut_down(radio_up)
-        bring_up(radio_up)
-        tune_and_wait_for_lock(radio_up, 433.92), f"cycle {i} failed"
+def test_ui_login_logout_cycle_repeats(fresh_session, tnc_url, tnc_credentials):
+    """5 login/logout cycles. Slow-marked so smoke runs can exclude it."""
+    from web import LoginPage
+    user, pw = tnc_credentials
+    for _ in range(5):
+        dashboard = LoginPage(fresh_session, base_url=tnc_url).open().sign_in(user, pw)
+        dashboard.click("logout_button")
+        # next iteration logs back in
