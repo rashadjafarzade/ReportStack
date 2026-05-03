@@ -96,7 +96,7 @@ const Sidebar: React.FC = () => {
         </NavLink>
 
         <div className="sidebar-section-label">Tools</div>
-        <a href="http://localhost:8000/docs" target="_blank" rel="noopener noreferrer" className="sidebar-link">
+        <a href="/api/docs" target="_blank" rel="noopener noreferrer" className="sidebar-link">
           <SidebarIcon>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
