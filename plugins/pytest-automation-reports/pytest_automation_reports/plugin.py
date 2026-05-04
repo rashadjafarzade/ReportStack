@@ -100,8 +100,15 @@ class AutomationReportsPlugin:
         self.log_handler.reset()
         logging.getLogger().addHandler(self.log_handler)
         self._start_times[item.nodeid] = time.time()
+
+    @pytest.hookimpl(hookwrapper=True)
+    def pytest_runtest_call(self, item):
+        # Driver is created during fixture setup, which finishes before
+        # runtest_call. Install action hooks here so funcargs are populated
+        # and the test class instance has its `driver` attribute set.
         if self.step_screenshots:
             self._install_action_hooks(item)
+        yield
 
     def _find_driver(self, item):
         driver = getattr(item, "_ar_driver", None)
