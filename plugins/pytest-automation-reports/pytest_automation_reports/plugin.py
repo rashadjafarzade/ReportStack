@@ -124,6 +124,31 @@ class AutomationReportsPlugin:
         except Exception as e:
             logger.error("Failed to report test item '%s': %s", item.name, e)
 
+    def pytest_internalerror(self, excrepr, excinfo):
+        """
+        Called when pytest crashes (collection errors, INTERNALERROR, etc.).
+        Create a synthetic test item so the failure is visible in the dashboard.
+        """
+        if not self.launch_id:
+            return
+
+        full_trace = str(excrepr)
+        lines = [l for l in full_trace.splitlines() if l.strip()]
+        error_message = lines[-1] if lines else "Unknown internal error"
+
+        try:
+            self.client.create_test_item(self.launch_id, {
+                "name": "__session_init__",
+                "suite": "__pytest_internalerror__",
+                "status": "FAILED",
+                "duration_ms": 0,
+                "error_message": error_message[:500],
+                "stack_trace": full_trace,
+            })
+            logger.info("Reported internalerror as synthetic test item to launch #%s", self.launch_id)
+        except Exception as e:
+            logger.error("Failed to report internalerror: %s", e)
+
     def pytest_sessionfinish(self, session, exitstatus):
         if not self.launch_id:
             return
