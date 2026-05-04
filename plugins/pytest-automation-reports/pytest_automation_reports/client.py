@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import mimetypes
 import requests
 import logging
 
@@ -46,10 +47,16 @@ class ARClient:
         return resp.json()
 
     def upload_attachment(self, launch_id: int, item_id: int, filepath: str, filename: str) -> dict:
+        # Detect MIME type from filename so backend classifies the attachment
+        # (e.g. image/png -> SCREENSHOT). Without an explicit content_type the
+        # backend sees application/octet-stream and stores it as OTHER.
+        content_type, _ = mimetypes.guess_type(filename)
+        if not content_type:
+            content_type = "application/octet-stream"
         with open(filepath, "rb") as f:
             resp = self.session.post(
                 f"{self.base_url}/launches/{launch_id}/items/{item_id}/attachments",
-                files={"file": (filename, f)},
+                files={"file": (filename, f, content_type)},
             )
         resp.raise_for_status()
         return resp.json()

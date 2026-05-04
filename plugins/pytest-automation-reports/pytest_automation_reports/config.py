@@ -37,3 +37,10 @@ def add_options(parser):
         default=False,
         help="Trigger AI analysis after test run. Env: AR_AUTO_ANALYZE",
     )
+    group.addoption(
+        "--ar-step-screenshots",
+        dest="ar_step_screenshots",
+        action="store_true",
+        default=False,
+        help="Capture a screenshot after each Selenium action (click/send_keys/get/submit). Env: AR_STEP_SCREENSHOTS",
+    )

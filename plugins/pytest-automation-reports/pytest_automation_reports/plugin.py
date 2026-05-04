@@ -10,6 +10,7 @@ from .config import add_options, get_option
 from .client import ARClient
 from .log_capture import LogCaptureHandler
 from .screenshot import capture_screenshot
+from .selenium_hooks import patch_driver_for_action_screenshots
 
 logger = logging.getLogger("automation-reports")
 
@@ -74,6 +75,10 @@ class AutomationReportsPlugin:
             config.getoption("ar_auto_analyze", default=False)
             or os.environ.get("AR_AUTO_ANALYZE", "").lower() in ("1", "true", "yes")
         )
+        self.step_screenshots = (
+            config.getoption("ar_step_screenshots", default=False)
+            or os.environ.get("AR_STEP_SCREENSHOTS", "").lower() in ("1", "true", "yes")
+        )
 
         self.launch_id = None
         self.log_handler = LogCaptureHandler()
@@ -93,6 +98,46 @@ class AutomationReportsPlugin:
         self.log_handler.reset()
         logging.getLogger().addHandler(self.log_handler)
         self._start_times[item.nodeid] = time.time()
+        if self.step_screenshots:
+            self._install_action_hooks(item)
+
+    def _find_driver(self, item):
+        driver = getattr(item, "_ar_driver", None)
+        if driver is None and getattr(item, "instance", None) is not None:
+            for attr in ("driver", "_driver", "browser", "wd"):
+                candidate = getattr(item.instance, attr, None)
+                if candidate is not None and hasattr(candidate, "save_screenshot"):
+                    driver = candidate
+                    break
+        if driver is None and hasattr(item, "funcargs"):
+            for value in item.funcargs.values():
+                if hasattr(value, "save_screenshot"):
+                    driver = value
+                    break
+        return driver
+
+    def _install_action_hooks(self, item):
+        driver = self._find_driver(item)
+        if driver is None:
+            return
+
+        def capture_fn(name):
+            return capture_screenshot(driver, name)
+
+        def report_step_fn(message, screenshot_path):
+            try:
+                logger.info("[STEP] %s", message)
+            except Exception:
+                pass
+            if screenshot_path:
+                if not hasattr(item, "_ar_screenshots_extra"):
+                    item._ar_screenshots_extra = []
+                item._ar_screenshots_extra.append(screenshot_path)
+
+        try:
+            patch_driver_for_action_screenshots(driver, capture_fn, report_step_fn)
+        except Exception as e:
+            logger.warning("Failed to install action hooks: %s", e)
 
     def pytest_runtest_teardown(self, item):
         logging.getLogger().removeHandler(self.log_handler)
