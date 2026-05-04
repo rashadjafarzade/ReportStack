@@ -128,17 +128,24 @@ class AutomationReportsPlugin:
         if not self.launch_id:
             return
 
-        status = "FAILED" if self._has_failures else "PASSED"
+        if self._has_failures:
+            status = "FAILED"
+        elif exitstatus != 0:
+            # Session aborted before any test reported failure
+            # (collection error, INTERNALERROR, no tests collected, etc.)
+            status = "FAILED"
+        else:
+            status = "PASSED"
+
         try:
             self.client.finish_launch(self.launch_id, status)
-            logger.info("Finished launch #%s with status %s", self.launch_id, status)
+            logger.info("Finished launch #%s with status %s (exitstatus=%s)", self.launch_id, status, exitstatus)
 
             if self.auto_analyze and self._has_failures:
                 self.client.trigger_analysis(self.launch_id)
                 logger.info("Triggered AI analysis for launch #%s", self.launch_id)
         except Exception as e:
             logger.error("Failed to finish launch: %s", e)
-
 
 @pytest.fixture
 def report_screenshot(request):
