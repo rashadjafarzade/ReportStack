@@ -37,7 +37,24 @@ def pytest_runtest_makereport(item, call):
 
     # Auto-screenshot on call-phase failure
     if call.when == "call" and rep.failed:
+        # Try multiple locations to find the WebDriver
         driver = getattr(item, "_ar_driver", None)
+
+        # Test class instance attribute (e.g. self.driver in test methods)
+        if driver is None and getattr(item, "instance", None) is not None:
+            for attr in ("driver", "_driver", "browser", "wd"):
+                candidate = getattr(item.instance, attr, None)
+                if candidate is not None and hasattr(candidate, "save_screenshot"):
+                    driver = candidate
+                    break
+
+        # Fixture return values (e.g. setup fixture yielding the driver)
+        if driver is None and hasattr(item, "funcargs"):
+            for value in item.funcargs.values():
+                if hasattr(value, "save_screenshot"):
+                    driver = value
+                    break
+
         if driver:
             path = capture_screenshot(driver, f"failure_{item.name}")
             if path:
