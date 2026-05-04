@@ -79,6 +79,8 @@ class AutomationReportsPlugin:
             config.getoption("ar_step_screenshots", default=False)
             or os.environ.get("AR_STEP_SCREENSHOTS", "").lower() in ("1", "true", "yes")
         )
+        logger.info("[AR-DEBUG] step_screenshots flag = %s (env AR_STEP_SCREENSHOTS=%r)",
+                    self.step_screenshots, os.environ.get("AR_STEP_SCREENSHOTS", ""))
 
         self.launch_id = None
         self.log_handler = LogCaptureHandler()
@@ -117,9 +119,16 @@ class AutomationReportsPlugin:
         return driver
 
     def _install_action_hooks(self, item):
+        logger.info("[AR-DEBUG] _install_action_hooks called for %s", item.nodeid)
         driver = self._find_driver(item)
         if driver is None:
+            logger.warning("[AR-DEBUG] No driver found at runtest_setup for %s; "
+                           "instance=%r, funcargs=%r",
+                           item.nodeid,
+                           getattr(item, "instance", None),
+                           list(getattr(item, "funcargs", {}).keys()) if hasattr(item, "funcargs") else None)
             return
+        logger.info("[AR-DEBUG] Driver found: %s", type(driver).__name__)
 
         def capture_fn(name):
             return capture_screenshot(driver, name)
