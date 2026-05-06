@@ -1,16 +1,16 @@
 ---
 name: automation-cicd-twd00030
-description: Set up, deploy, troubleshoot, or extend the CI/CD pipeline and Automation Reports web app on Linux host twd00030. Use this skill whenever the user asks about Jenkins setup, the pytest automation framework, the Reports app deployment, Docker Compose configuration, the integration between Jenkins and the Reports app, or any infrastructure on this specific Linux machine. Trigger on phrases like "the pipeline", "Jenkins", "the reports app", "automation framework", "deploy", "twd00030", or any mention of test reporting infrastructure.
+description: Set up, deploy, troubleshoot, or extend the CI/CD pipeline and ReportStack web app on Linux host twd00030. Use this skill whenever the user asks about Jenkins setup, the pytest automation framework, the ReportStack deployment, Docker Compose configuration, the integration between Jenkins and ReportStack, or any infrastructure on this specific Linux machine. Trigger on phrases like "the pipeline", "Jenkins", "ReportStack", "the reports app", "automation framework", "deploy", "twd00030", or any mention of test reporting infrastructure.
 ---
 
-# Automation CI/CD + Reports App on twd00030
+# ReportStack CI/CD + Deployment on twd00030
 
 ## Project overview
 
 This project consists of two integrated systems running on a single Linux host:
 
 1. **CI/CD pipeline** — Jenkins orchestrates a pytest-based automation framework. Jenkins pulls code from GitHub, builds a Docker image with the framework, runs the test suite in that container, and reports results.
-2. **Automation Reports web app** — A self-hosted ReportPortal-style platform (FastAPI + React + Postgres) that receives test results from the pytest framework via a custom plugin (`pytest-automation-reports`) and presents them to users.
+2. **ReportStack web app** — A self-hosted ReportPortal-style platform (FastAPI + React + Postgres) that receives test results from the pytest framework via a custom plugin (`pytest-automation-reports`) and presents them to users.
 
 The two systems run on the same Linux machine (`twd00030`) and connect over the local Docker network.
 
@@ -61,9 +61,9 @@ The legacy `docker-compose` v1 (Python tool, version 1.29.2) may still be presen
 | 8080 | Jenkins UI | 0.0.0.0 |
 | 50000 | Jenkins agent | 0.0.0.0 |
 | 3389 | RDP | * |
-| 9090 | (unknown — investigate if needed) | * |
+| 9090 | (unknown — likely Cockpit or stray Prometheus; investigate with `ss -tlnp | grep 9090` before deploying more services) | * |
 
-**Reserved for Reports app deployment:**
+**Reserved for ReportStack app deployment:**
 - 8000 → FastAPI backend
 - 3000 → React frontend (via nginx)
 
@@ -74,7 +74,7 @@ The legacy `docker-compose` v1 (Python tool, version 1.29.2) may still be presen
 ## Key decisions (with reasoning)
 
 ### Ollama / AI analysis is DEFERRED
-The Reports app design includes an `/api/v1/analyze` endpoint backed by Ollama running `mistral:7b`. **Do not deploy Ollama on this host.** Reasoning: mistral:7b consumes 5–6 GiB RAM during inference, which leaves no headroom on a 15 GiB box once Jenkins, Postgres, backend, frontend, and a test-runner container are also running.
+The ReportStack app design includes an `/api/v1/analyze` endpoint backed by Ollama running `mistral:7b`. **Do not deploy Ollama on this host.** Reasoning: mistral:7b consumes 5–6 GiB RAM during inference, which leaves no headroom on a 15 GiB box once Jenkins, Postgres, backend, frontend, and a test-runner container are also running.
 
 Implementation pattern: backend ships with `AI_ANALYSIS_ENABLED=false` env flag. The `/analyze` endpoint returns a graceful "not configured" response. When stronger hardware is available later, flip the flag and add the Ollama service to compose — no code changes needed.
 
@@ -90,7 +90,7 @@ No Caddy/Traefik/nginx-edge-proxy needed on this host. The company has an intern
 Action item: an IT request must be filed to set up the hostnames and confirm GitHub webhook reachability for `jenkins.<company>.internal/github-webhook/`.
 
 ### Both systems on one machine — for now
-Jenkins and the Reports app share the host. Acceptable while RAM is sufficient. Plan: monitor RAM headroom; if it tightens, the Reports app is a clean candidate for a second box.
+Jenkins and the ReportStack app share the host. Acceptable while RAM is sufficient. Plan: monitor RAM headroom; if it tightens, the ReportStack app is a clean candidate for a second box.
 
 ### Storage: local Docker volumes, backed up to NFS
 - Postgres data: named volume `postgres_data` (local NVMe disk)
@@ -100,7 +100,7 @@ Jenkins and the Reports app share the host. Acceptable while RAM is sufficient. 
 Do NOT bind-mount data directories from `/misc/mirrors` or other shared NFS — performance and concurrency issues. Local volumes only; back them up to NFS.
 
 ### Development model: Mac → Linux
-Reports app code is developed on a personal Mac (likely Apple Silicon / arm64) and cloned to twd00030 (amd64) for deployment. Implications:
+ReportStack app code is developed on a personal Mac (likely Apple Silicon / arm64) and cloned to twd00030 (amd64) for deployment. Implications:
 - Use multi-arch base images in Dockerfiles (`python:3.12-slim`, `node:20-alpine`, `postgres:16-alpine` are all multi-arch)
 - Don't push `:arm64` images from Mac; build on Linux
 - Pin all image versions exactly (`postgres:16.4-alpine`, never `:latest`)
@@ -154,9 +154,9 @@ Reports app code is developed on a personal Mac (likely Apple Silicon / arm64) a
                     Internal users
 ```
 
-## Standard `docker-compose.yml` for the Reports app
+## Standard `docker-compose.yml` for the ReportStack app
 
-The version of compose to use when deploying the Reports app stack. Lives in the cloned project repo on twd00030.
+The version of compose to use when deploying the ReportStack app stack. Lives in the cloned project repo on twd00030.
 
 ```yaml
 services:
@@ -192,10 +192,11 @@ services:
     ports:
       - "8000:8000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
       interval: 15s
       timeout: 5s
       retries: 5
+      start_period: 15s
 
   frontend:
     build: ./frontend
@@ -224,7 +225,7 @@ df -h /                                 # host disk
 free -h                                 # host RAM
 ```
 
-### Reports app lifecycle (when deployed)
+### ReportStack app lifecycle (when deployed)
 ```bash
 cd ~/projects/reports-app
 docker compose up -d --build            # bring up / rebuild
@@ -254,7 +255,7 @@ restic -r /misc/IT/backups/jenkins init
 restic -r /misc/IT/backups/jenkins backup /var/lib/docker/volumes/jenkins_home
 ```
 
-### Postgres backup (when Reports app is deployed)
+### Postgres backup (when ReportStack app is deployed)
 ```bash
 docker compose exec -T db pg_dump -U $POSTGRES_USER $POSTGRES_DB | \
   gzip > /misc/IT/backups/reports-db-$(date +%Y%m%d).sql.gz
@@ -288,7 +289,7 @@ If GitHub.com cannot reach the Jenkins URL through the company proxy, fall back 
 
 ## Reference Jenkinsfile
 
-Lives in the pytest framework repo, not the Reports app repo:
+Lives in the pytest framework repo, not the ReportStack app repo:
 
 ```groovy
 pipeline {
@@ -299,7 +300,7 @@ pipeline {
     }
     environment {
         IMAGE_TAG = "automation-fw:${env.BUILD_NUMBER}"
-        REPORTS_API_URL = "http://reports-backend:8000"
+        AR_URL = "http://localhost:8000/api/v1"
     }
     stages {
         stage('Checkout') { steps { checkout scm } }
@@ -308,17 +309,19 @@ pipeline {
         }
         stage('Run tests') {
             steps {
-                withCredentials([string(credentialsId: 'REPORTS_API_TOKEN', variable: 'REPORTS_API_TOKEN')]) {
+                withCredentials([string(credentialsId: 'AR_TOKEN', variable: 'AR_TOKEN')]) {
                     sh '''
                         docker run --rm \
-                          --network reports-app_default \
-                          -e REPORTS_API_URL=$REPORTS_API_URL \
-                          -e REPORTS_API_TOKEN=$REPORTS_API_TOKEN \
+                          --network host \
+                          -e AR_URL=$AR_URL \
+                          -e AR_TOKEN=$AR_TOKEN \
                           -v $WORKSPACE/reports:/app/reports \
                           $IMAGE_TAG \
                           pytest -n auto \
                                  --junitxml=reports/junit.xml \
-                                 --automation-reports
+                                 --ar-url=$AR_URL \
+                                 --ar-launch-name="Regression Run" \
+                                 --ar-auto-analyze
                     '''
                 }
             }
@@ -335,7 +338,7 @@ pipeline {
 }
 ```
 
-The `--network reports-app_default` lets the test runner POST results directly to the backend by service name. Confirm the actual network name with `docker network ls` after the Reports app is up.
+The test container uses `--network host` so it can reach both the ReportStack backend (`localhost:8000`) and radio devices on the LAN. No compose-network dependency.
 
 ## Open / TODO items
 
@@ -343,22 +346,23 @@ The `--network reports-app_default` lets the test runner POST results directly t
 - [ ] Verify Jenkins has a working pipeline against the pytest framework (even just `pytest --collect-only`)
 - [ ] File IT request for hostnames `jenkins.<company>.internal` and `reports.<company>.internal`, plus inbound webhook path
 - [ ] Confirm GitHub webhook reachability (or commit to polling)
-- [ ] Reports app code: still in development on Mac
-- [ ] Clone Reports app to twd00030 once code is ready (`~/projects/reports-app/`)
-- [ ] Implement `pytest-automation-reports` plugin and integrate with Jenkinsfile
+- [ ] ReportStack app code: still in development on Mac
+- [ ] Clone ReportStack app to twd00030 once code is ready (`~/projects/reports-app/`)
+- [x] ~~Implement `pytest-automation-reports` plugin~~ — DONE (lives in `plugins/pytest-automation-reports/`, uses `--ar-*` CLI flags + `AR_URL`/`AR_TOKEN` env vars)
 - [ ] Write `Dockerfile` for backend (Python 3.12-slim base)
 - [ ] Write `Dockerfile` for frontend (multi-stage: node:20-alpine build → nginx:1.27-alpine serve)
 - [ ] Write `Makefile` with common operations (build/up/down/logs/migrate/seed/backup)
 - [ ] Set up restic backup schedule for `jenkins_home`, `postgres_data`, `attachments` → `/misc/IT/backups`
 - [ ] Install Portainer for visual container management (optional)
-- [ ] Decide attachment storage strategy long-term (local vs MinIO vs S3 vs NFS)
+- [ ] Implement `Storage` abstraction in `services/storage.py` (see CLAUDE.md for interface spec). Dev compose uses MinIO; twd00030 compose uses `ATTACHMENT_PATH` with local volume — but the local-disk adapter doesn't exist yet. This blocks the first deploy if attachments are used
 - [ ] Add Ollama service to compose if/when stronger hardware available
+- [ ] Pin `COMPOSE_PROJECT_NAME=reports-app` in `.env` so the network name is deterministic (`reports-app_default`) regardless of clone directory name
 
 ## Gotchas / things that have bitten or will bite
 
 1. **Don't run `~/system-inventory.txt` directly** — text files aren't executable. Use `cat ~/system-inventory.txt` to view.
 2. **`docker-compose` (v1) vs `docker compose` (v2)** — always use the v2 form. The v1 alias is deprecated.
-3. **Port 8080 is taken** by Jenkins — the Reports app frontend uses 3000, backend uses 8000. Don't reassign.
+3. **Port 8080 is taken** by Jenkins — the ReportStack app frontend uses 3000, backend uses 8000. Don't reassign.
 4. **Mac (arm64) → Linux (amd64) image differences** — use multi-arch base images, don't push platform-specific tags.
 5. **Postgres should never be exposed** on the host — keep `ports:` unset for the db service. Backend connects via Docker network using the service name `db`.
 6. **`.env` files are never committed** — only `.env.example` with placeholders. Real credentials go on each host manually.
@@ -367,21 +371,23 @@ The `--network reports-app_default` lets the test runner POST results directly t
 9. **Test attachments grow fast** — set retention policies and monitor `attachments` volume size from week one.
 10. **`/misc/mirrors` is 93% full and shared** — do not write project data there. Use `/misc/IT` for backups (it has 200 GB free).
 11. **Hardware Java reports as missing** — that's correct. Jenkins ships its own JDK in the container.
+12. **`python:3.12-slim` has no `curl`** — healthchecks must use Python `urllib` or `wget`, not `curl`. The compose snippet above uses a Python one-liner for this reason.
 
-## Recommended deploy sequence (when Reports app is ready)
+## Recommended deploy sequence (when ReportStack app is ready)
 
 1. Confirm cleanup is done and disk has space (`df -h /`, expect 170+ GB free)
 2. SSH key set up between rjafarzade@twd00030 and GitHub for cloning
 3. `cd ~/projects && git clone <reports-app-repo-url>`
-4. `cd reports-app && cp .env.example .env && nano .env` (set real credentials)
+4. `cd reports-app && cp .env.example .env && nano .env` (set real credentials, ensure `COMPOSE_PROJECT_NAME=reports-app` is set)
 5. `docker compose build` — first build is slow, subsequent are cached
 6. `docker compose up -d`
 7. `docker compose ps` — confirm all services show `healthy`
 8. `docker compose exec backend alembic upgrade head` — DB migrations
 9. `curl http://localhost:8000/health` — should return 200
 10. `curl http://localhost:3000` — should return frontend HTML
-11. Configure Jenkinsfile to POST to `http://reports-backend:8000` via Docker network
-12. Run pipeline, confirm test results appear in Reports UI
+11. Create a service-account user for Jenkins: `curl -X POST http://localhost:8000/api/v1/auth/register -H 'Content-Type: application/json' -d '{"email":"jenkins@reportstack.local","name":"Jenkins CI","password":"<strong-password>"}'` — save the returned `access_token` as `AR_TOKEN` in Jenkins credentials
+12. Configure Jenkinsfile with `--network host`, `AR_URL=http://localhost:8000/api/v1`, `AR_TOKEN` from step 11
+13. Run pipeline, confirm test results appear in ReportStack UI
 13. Schedule restic backups
 14. File IT request for proxy hostnames if not yet done
 15. Mark project deployed; switch to maintenance mode
@@ -391,7 +397,7 @@ The `--network reports-app_default` lets the test runner POST results directly t
 Read this file when:
 - Setting up, modifying, or debugging anything on `twd00030`
 - Working on Jenkins jobs, the pytest framework, or its Docker image
-- Working on the Automation Reports backend, frontend, database, or compose config
+- Working on the ReportStack backend, frontend, database, or compose config
 - Discussing storage, backups, or capacity planning for this project
 - Asked about decisions that were made (Ollama deferred, single-box deployment, etc.)
 - Filing or reviewing IT requests related to this project
