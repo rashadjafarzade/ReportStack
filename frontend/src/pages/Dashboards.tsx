@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import { getDashboards, createDashboard, deleteDashboard, addWidget, removeWidget, Dashboard } from "../api/dashboards";
 import { getLaunches } from "../api/launches";
 import { getMostFailed, MostFailedTest } from "../api/history";
@@ -38,8 +38,9 @@ const WIDGET_TYPES = [
 
 const Dashboards: React.FC = () => {
   const navigate = useNavigate();
+  const { id: urlId } = useParams<{ id?: string }>();
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(urlId ? Number(urlId) : null);
   const [launches, setLaunches] = useState<Launch[]>([]);
   const [mostFailed, setMostFailed] = useState<MostFailedTest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,7 +64,9 @@ const Dashboards: React.FC = () => {
         setLaunches(launchRes.data.items || []);
         setMostFailed(failedRes.data || []);
         if (items.length > 0 && !selectedId) {
-          setSelectedId(items[0].id);
+          const first = items[0].id;
+          setSelectedId(first);
+          navigate(`/dashboards/${first}`, { replace: true });
         }
       })
       .finally(() => setLoading(false));
@@ -101,6 +104,7 @@ const Dashboards: React.FC = () => {
         setCreating(false);
         setNewName("");
         setSelectedId(res.data.id);
+        navigate(`/dashboards/${res.data.id}`);
         loadAll();
         showToast("Dashboard created");
       });
@@ -354,7 +358,7 @@ const Dashboards: React.FC = () => {
               <select
                 className="select select-md"
                 value={selectedId || ""}
-                onChange={e => setSelectedId(Number(e.target.value))}
+                onChange={e => { const id = Number(e.target.value); setSelectedId(id); navigate(`/dashboards/${id}`); }}
               >
                 {dashboards.map(d => (
                   <option key={d.id} value={d.id}>{d.name}</option>

@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { getLaunch, getTestItems } from "../api/launches";
 import { getTestLogs } from "../api/logs";
 import { getTestAttachments, getAttachmentUrl } from "../api/attachments";
 import { ScreenshotViewer } from "../components/ScreenshotViewer";
 import { getItemAnalyses, overrideAnalysis } from "../api/analyses";
 import { getItemDefects } from "../api/defects";
-import { Launch, TestItem, TestLog, Attachment, FailureAnalysis, Defect, DefectType } from "../types";
+import { getItemComments } from "../api/comments";
+import { Launch, TestItem, TestLog, Attachment, FailureAnalysis, Defect, DefectType, Comment } from "../types";
+import { Breadcrumb } from "../components/Breadcrumb";
 import HistoryStrip from "../components/HistoryStrip";
 import { format } from "date-fns";
 
@@ -160,6 +162,7 @@ const TestDetail: React.FC = () => {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [analyses, setAnalyses] = useState<FailureAnalysis[]>([]);
   const [defects, setDefects] = useState<Defect[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("stack");
   const [logLevel, setLogLevel] = useState("ALL");
@@ -174,7 +177,8 @@ const TestDetail: React.FC = () => {
       getTestAttachments(launchId, itemId),
       getItemAnalyses(launchId, itemId),
       getItemDefects(launchId, itemId),
-    ]).then(([launchRes, itemsRes, logsRes, attachRes, analysesRes, defectsRes]) => {
+      getItemComments(launchId, itemId),
+    ]).then(([launchRes, itemsRes, logsRes, attachRes, analysesRes, defectsRes, commentsRes]) => {
       setLaunch(launchRes.data);
       const found = (itemsRes.data as TestItem[]).find(i => i.id === itemId);
       setItem(found || null);
@@ -182,6 +186,7 @@ const TestDetail: React.FC = () => {
       setAttachments(Array.isArray(attachRes.data) ? attachRes.data : []);
       setAnalyses(Array.isArray(analysesRes.data) ? analysesRes.data : []);
       setDefects(Array.isArray(defectsRes.data) ? defectsRes.data : []);
+      setComments(Array.isArray(commentsRes.data) ? commentsRes.data : []);
     }).finally(() => setLoading(false));
   }, [launchId, itemId]);
 
@@ -234,16 +239,13 @@ const TestDetail: React.FC = () => {
 
   return (
     <div>
-      <div className="page-breadcrumb">
-        <Link to="/">Dashboard</Link>
-        <span className="page-breadcrumb-separator">/</span>
-        <Link to="/launches">Launches</Link>
-        <span className="page-breadcrumb-separator">/</span>
-        <Link to={`/launches/${launchId}`}>{launch.name}</Link>
-        <span className="page-breadcrumb-separator">/</span>
-        {item.suite && <><span style={{ fontFamily: "var(--font-mono)" }}>{item.suite}</span><span className="page-breadcrumb-separator">/</span></>}
-        <span style={{ color: "var(--color-text)", fontFamily: "var(--font-mono)" }}>{item.name}</span>
-      </div>
+      <Breadcrumb items={[
+        { label: "Dashboard", to: "/" },
+        { label: "Launches", to: "/launches" },
+        { label: launch.name, to: `/launches/${launchId}` },
+        ...(item.suite ? [{ label: item.suite }] : []),
+        { label: item.name },
+      ]} />
 
       <div className="detail-header-row">
         <button className="back-btn" onClick={() => navigate(`/launches/${launchId}`)}>
@@ -307,6 +309,10 @@ const TestDetail: React.FC = () => {
         <button className={`rp-tab ${tab === "details" ? "active" : ""}`} onClick={() => setTab("details")}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>
           Item details
+        </button>
+        <button className={`rp-tab ${tab === "history" ? "active" : ""}`} onClick={() => setTab("history")}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+          History of actions
         </button>
       </div>
 
@@ -432,6 +438,41 @@ const TestDetail: React.FC = () => {
           {item.error_message && (
             <><span className="rp-detail-key">Error</span><span className="rp-detail-val" style={{ color: "var(--color-failed)" }}>{item.error_message}</span></>
           )}
+        </div>
+      )}
+
+      {tab === "history" && (
+        <div className="rp-detail-grid" style={{ gap: 0 }}>
+          {(() => {
+            const events: { time: string; type: string; detail: string }[] = [];
+            analyses.forEach(a => events.push({
+              time: a.created_at,
+              type: a.source === "AI_AUTO" ? "AI Analysis" : "Manual Override",
+              detail: `Classified as ${DEFECT_TYPES.find(d => d.value === a.defect_type)?.label || a.defect_type}${a.confidence ? ` (${Math.round(a.confidence * 100)}% confidence)` : ""}`,
+            }));
+            comments.forEach(c => events.push({
+              time: c.created_at,
+              type: "Comment",
+              detail: `${c.author}: ${c.text}`,
+            }));
+            defects.forEach(d => events.push({
+              time: d.created_at,
+              type: "Defect Linked",
+              detail: `${d.summary}${d.external_id ? ` (${d.external_id})` : ""}`,
+            }));
+            events.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+            if (events.length === 0) {
+              return <div style={{ padding: 32, textAlign: "center", color: "var(--color-text-muted)", gridColumn: "1 / -1" }}>No actions recorded for this test.</div>;
+            }
+            return events.map((e, i) => (
+              <div key={i} style={{ display: "contents" }}>
+                <span className="rp-detail-key">{format(new Date(e.time), "MMM d, HH:mm:ss")}</span>
+                <span className="rp-detail-val">
+                  <strong>{e.type}</strong> &mdash; {e.detail}
+                </span>
+              </div>
+            ));
+          })()}
         </div>
       )}
 

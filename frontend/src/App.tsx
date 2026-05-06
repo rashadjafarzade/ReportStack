@@ -157,10 +157,12 @@ function AppRoutes() {
                   <Route path="/launches" element={<LaunchList />} />
                   <Route path="/launches/:id" element={<LaunchDetail />} />
                   <Route path="/launches/:id/items/:itemId" element={<TestDetail />} />
+                  <Route path="/launches/:id/items/:itemId/log" element={<TestDetail />} />
                   <Route path="/members" element={<Members />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/dashboards" element={<Dashboards />} />
+                  <Route path="/dashboards/:id" element={<Dashboards />} />
                   <Route path="/trends" element={<Trends />} />
                 </Routes>
               </div>

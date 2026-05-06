@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { getLaunch, getTestItems } from "../api/launches";
 import { getItemAnalyses, triggerLaunchAnalysis } from "../api/analyses";
 import { getTestAttachments } from "../api/attachments";
 import { Launch, TestItem, FailureAnalysis, Attachment } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
+import { Breadcrumb } from "../components/Breadcrumb";
 import { LogViewer } from "../components/LogViewer";
 import { ScreenshotViewer } from "../components/ScreenshotViewer";
 import { DefectSelector } from "../components/DefectSelector";
@@ -620,13 +621,11 @@ const LaunchDetail: React.FC = () => {
 
   return (
     <div>
-      <div className="page-breadcrumb">
-        <Link to="/">Dashboard</Link>
-        <span className="page-breadcrumb-separator">/</span>
-        <Link to="/launches">Launches</Link>
-        <span className="page-breadcrumb-separator">/</span>
-        <span>Launch #{launch.id}</span>
-      </div>
+      <Breadcrumb items={[
+        { label: "Dashboard", to: "/" },
+        { label: "Launches", to: "/launches" },
+        { label: `Launch #${launch.id}` },
+      ]} />
 
       <div className="detail-header-row">
         <button className="back-btn" aria-label="Back" onClick={() => navigate("/launches")}>
