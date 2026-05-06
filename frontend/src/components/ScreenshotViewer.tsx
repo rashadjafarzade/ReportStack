@@ -5,9 +5,10 @@ import { Attachment } from "../types";
 interface ScreenshotViewerProps {
   launchId: number;
   itemId: number;
+  hideEmpty?: boolean;
 }
 
-export const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({ launchId, itemId }) => {
+export const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({ launchId, itemId, hideEmpty = false }) => {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,6 +31,9 @@ export const ScreenshotViewer: React.FC<ScreenshotViewerProps> = ({ launchId, it
   }
 
   if (screenshots.length === 0) {
+    if (hideEmpty) {
+      return null;
+    }
     return (
       <div className="empty-state" style={{ padding: "var(--space-8)" }}>
         <div className="empty-state-icon">&#128247;</div>

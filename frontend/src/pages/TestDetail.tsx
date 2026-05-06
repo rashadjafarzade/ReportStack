@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { getLaunch, getTestItems } from "../api/launches";
 import { getTestLogs } from "../api/logs";
 import { getTestAttachments, getAttachmentUrl } from "../api/attachments";
+import { ScreenshotViewer } from "../components/ScreenshotViewer";
 import { getItemAnalyses, overrideAnalysis } from "../api/analyses";
 import { getItemDefects } from "../api/defects";
 import { Launch, TestItem, TestLog, Attachment, FailureAnalysis, Defect, DefectType } from "../types";
@@ -310,7 +311,12 @@ const TestDetail: React.FC = () => {
       </div>
 
       {/* Tab content */}
-      {tab === "stack" && <StackTraceBlock text={item.stack_trace || item.error_message} />}
+      {tab === "stack" && (
+        <div className="stack-with-screenshot">
+          <StackTraceBlock text={item.stack_trace || item.error_message} />
+          <ScreenshotViewer launchId={launchId} itemId={item.id} hideEmpty />
+        </div>
+      )}
 
       {tab === "logs" && (
         <>

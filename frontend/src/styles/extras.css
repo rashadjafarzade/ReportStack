@@ -1899,3 +1899,21 @@ td.expand-cell {
   letter-spacing: 0.03em;
   vertical-align: middle;
 }
+
+/* Stack trace + screenshot side-by-side layout (TestDetail page) */
+.stack-with-screenshot {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.stack-with-screenshot > :first-child {
+  min-width: 0;
+}
+
+@media (max-width: 1100px) {
+  .stack-with-screenshot {
+    grid-template-columns: 1fr;
+  }
+}
