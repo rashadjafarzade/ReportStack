@@ -1,0 +1,6 @@
+{
+  "email_field":     { "by": "css", "value": "input[name='email']" },
+  "password_field":  { "by": "css", "value": "input[name='password']" },
+  "submit_button":   { "by": "css", "value": "button[type='submit']" },
+  "error_message":   { "by": "css", "value": ".login-error" }
+}

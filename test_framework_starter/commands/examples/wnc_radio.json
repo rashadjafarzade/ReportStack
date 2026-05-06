@@ -1,0 +1,12 @@
+{
+  "power_on":         "radioctl --on",
+  "power_off":        "radioctl --off",
+  "set_freq":         "radioctl --freq {mhz}",
+  "read_rssi":        "radioctl --query rssi",
+  "read_lock_state":  "radioctl --query lock",
+  "set_modulation":   "radioctl --mod {scheme}",
+  "read_temperature": "radioctl --query temp_c",
+  "read_serial":      "cat /sys/class/radio/serial",
+  "reboot":           "reboot",
+  "version":          "radioctl --version"
+}

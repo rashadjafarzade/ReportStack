@@ -1,0 +1,8 @@
+{
+  "power_on":         "echo 1 | tee /sys/class/radio/power",
+  "power_off":        "echo 0 | tee /sys/class/radio/power",
+  "set_freq":         "iwconfig radio0 freq {mhz}M",
+  "read_rssi":        "iwconfig radio0 | grep -oP 'Signal level=\\K[-\\d]+'",
+  "read_lock_state":  "test -e /sys/class/radio/locked && echo 1 || echo 0",
+  "version":          "uname -r"
+}
