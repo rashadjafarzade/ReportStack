@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import { getDashboards, createDashboard, deleteDashboard, addWidget, removeWidget, Dashboard } from "../api/dashboards";
 import { getLaunches } from "../api/launches";
 import { getMostFailed, MostFailedTest } from "../api/history";
@@ -38,8 +38,9 @@ const WIDGET_TYPES = [
 
 const Dashboards: React.FC = () => {
   const navigate = useNavigate();
+  const { id: urlId } = useParams<{ id?: string }>();
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(urlId ? Number(urlId) : null);
   const [launches, setLaunches] = useState<Launch[]>([]);
   const [mostFailed, setMostFailed] = useState<MostFailedTest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +48,7 @@ const Dashboards: React.FC = () => {
   const [newName, setNewName] = useState("");
   const [showAddWidget, setShowAddWidget] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2000); };
 
@@ -62,16 +64,21 @@ const Dashboards: React.FC = () => {
         setDashboards(items);
         setLaunches(launchRes.data.items || []);
         setMostFailed(failedRes.data || []);
-        if (items.length > 0 && !selectedId) {
-          setSelectedId(items[0].id);
+        if (urlId && items.length > 0) {
+          setSelectedId(Number(urlId));
         }
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [urlId]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
   const selected = useMemo(() => dashboards.find(d => d.id === selectedId) || null, [dashboards, selectedId]);
+
+  const filteredDashboards = useMemo(() => {
+    if (!search) return dashboards;
+    return dashboards.filter(d => d.name.toLowerCase().includes(search.toLowerCase()));
+  }, [dashboards, search]);
 
   const chartData = useMemo(() =>
     [...launches].reverse().map(l => ({
@@ -101,6 +108,7 @@ const Dashboards: React.FC = () => {
         setCreating(false);
         setNewName("");
         setSelectedId(res.data.id);
+        navigate(`/dashboards/${res.data.id}`);
         loadAll();
         showToast("Dashboard created");
       });
@@ -110,8 +118,8 @@ const Dashboards: React.FC = () => {
     if (!selectedId) return;
     deleteDashboard(selectedId).then(() => {
       setSelectedId(null);
-      loadAll();
       showToast("Dashboard deleted");
+      loadAll();
     });
   };
 
@@ -342,62 +350,147 @@ const Dashboards: React.FC = () => {
     return <div className="loading-center"><div className="spinner spinner-lg" /></div>;
   }
 
+  // ===== LIST VIEW (no :id in URL) =====
+  if (!urlId) {
+    return (
+      <div>
+        <div className="dv-toolbar">
+          <h1 className="page-title" style={{ margin: 0, fontSize: 18 }}>ALL DASHBOARDS</h1>
+          <div className="dv-toolbar-actions">
+            {creating ? (
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input
+                  className="input"
+                  placeholder="Dashboard name..."
+                  value={newName}
+                  onChange={e => setNewName(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleCreate()}
+                  autoFocus
+                  style={{ width: 200 }}
+                />
+                <button className="btn btn-primary btn-sm" onClick={handleCreate} disabled={!newName.trim()}>Create</button>
+                <button className="btn btn-secondary btn-sm" onClick={() => { setCreating(false); setNewName(""); }}>Cancel</button>
+              </div>
+            ) : (
+              <button className="btn btn-primary btn-sm" onClick={() => setCreating(true)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                Add New Dashboard
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div style={{ padding: "16px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="search-input-wrap" style={{ maxWidth: 320 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input className="input search-input" placeholder="Search by name" value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          <div style={{ display: "flex", gap: 4 }}>
+            <button className="btn btn-ghost btn-sm" title="Grid view" style={{ padding: "6px 10px", opacity: 0.5 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+              </svg>
+            </button>
+            <button className="btn btn-primary btn-sm" title="List view" style={{ padding: "6px 10px" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {filteredDashboards.length === 0 ? (
+          <div className="empty-state" style={{ marginTop: 40 }}>
+            <div className="empty-state-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" />
+              </svg>
+            </div>
+            <div className="empty-state-title">No dashboards yet</div>
+            <div style={{ color: "var(--color-text-muted)", fontSize: 13, marginTop: 4 }}>Click "Add New Dashboard" to create one.</div>
+          </div>
+        ) : (
+          <>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>DASHBOARD NAME</th>
+                  <th>DESCRIPTION</th>
+                  <th style={{ width: 120 }}>OWNER</th>
+                  <th style={{ width: 100, textAlign: "center" }}>DUPLICATE</th>
+                  <th style={{ width: 80, textAlign: "center" }}>EDIT</th>
+                  <th style={{ width: 80, textAlign: "center" }}>DELETE</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredDashboards.map(d => (
+                  <tr key={d.id} className="row-clickable" onClick={() => navigate(`/dashboards/${d.id}`)}>
+                    <td>
+                      <span style={{ color: "var(--color-primary)", fontWeight: 600, textTransform: "uppercase", cursor: "pointer" }}>
+                        {d.name}
+                      </span>
+                    </td>
+                    <td style={{ color: "var(--color-text-secondary)", fontSize: 13 }}>{d.description || ""}</td>
+                    <td style={{ fontSize: 13 }}>default</td>
+                    <td style={{ textAlign: "center" }}>
+                      <button className="icon-btn" title="Duplicate" onClick={e => { e.stopPropagation(); createDashboard({ name: `${d.name} (copy)` }).then(() => { loadAll(); showToast("Dashboard duplicated"); }); }} style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+                      </button>
+                    </td>
+                    <td style={{ textAlign: "center" }}>
+                      <button className="icon-btn" title="Edit" onClick={e => { e.stopPropagation(); navigate(`/dashboards/${d.id}`); }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                      </button>
+                    </td>
+                    <td style={{ textAlign: "center" }}>
+                      <button className="icon-btn" title="Delete" style={{ color: "var(--color-failed)" }} onClick={e => { e.stopPropagation(); deleteDashboard(d.id).then(() => { loadAll(); showToast("Dashboard deleted"); }); }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", fontSize: 13, color: "var(--color-text-muted)" }}>
+              <span>{filteredDashboards.length === 1 ? "1 - 1 of 1" : `1 - ${filteredDashboards.length} of ${filteredDashboards.length}`}</span>
+              <span>50 per page</span>
+            </div>
+          </>
+        )}
+
+        {toast && (
+          <div className="profile-toast">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+            {toast}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ===== DETAIL VIEW (with :id in URL) =====
   return (
     <div>
-      {/* Toolbar: selector + actions */}
-      <div className="dv-toolbar">
-        <div className="dv-toolbar-left">
-          <h1 className="page-title" style={{ margin: 0, fontSize: 18 }}>Dashboards</h1>
-          {dashboards.length > 0 && (
-            <>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
-              <select
-                className="select select-md"
-                value={selectedId || ""}
-                onChange={e => setSelectedId(Number(e.target.value))}
-              >
-                {dashboards.map(d => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
-            </>
-          )}
-        </div>
+      <div className="page-breadcrumb">
+        <Link to="/dashboards">ALL DASHBOARDS</Link>
+        <span className="page-breadcrumb-separator">/</span>
+        <span>{selected?.name || `Dashboard #${urlId}`}</span>
+      </div>
+
+      <div className="dv-toolbar" style={{ marginTop: 16 }}>
+        <h1 className="page-title" style={{ margin: 0, fontSize: 18 }}>{selected?.name || "Dashboard"}</h1>
         <div className="dv-toolbar-actions">
-          {creating ? (
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <input
-                className="input"
-                placeholder="Dashboard name..."
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleCreate()}
-                autoFocus
-                style={{ width: 200 }}
-              />
-              <button className="btn btn-primary btn-sm" onClick={handleCreate} disabled={!newName.trim()}>Create</button>
-              <button className="btn btn-secondary btn-sm" onClick={() => { setCreating(false); setNewName(""); }}>Cancel</button>
-            </div>
-          ) : (
-            <>
-              <button className="btn btn-secondary btn-sm" onClick={() => setCreating(true)}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                New Dashboard
-              </button>
-              {selected && (
-                <>
-                  <button className="btn btn-primary btn-sm" onClick={() => setShowAddWidget(true)}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                    Add widget
-                  </button>
-                  <button className="btn btn-ghost btn-sm" title="Delete dashboard" onClick={handleDelete} style={{ color: "var(--color-failed)" }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
-                    Delete
-                  </button>
-                </>
-              )}
-            </>
-          )}
+          <button className="btn btn-primary btn-sm" onClick={() => setShowAddWidget(true)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+            Add new widget
+          </button>
+          <button className="btn btn-ghost btn-sm" title="Delete dashboard" onClick={() => { handleDelete(); navigate("/dashboards"); }} style={{ color: "var(--color-failed)" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
+            Delete
+          </button>
         </div>
       </div>
 
@@ -431,18 +524,8 @@ const Dashboards: React.FC = () => {
         </div>
       )}
 
-      {/* Content */}
-      {dashboards.length === 0 ? (
-        <div className="empty-state" style={{ marginTop: 40 }}>
-          <div className="empty-state-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" />
-            </svg>
-          </div>
-          <div className="empty-state-title">No dashboards yet</div>
-          <div style={{ color: "var(--color-text-muted)", fontSize: 13, marginTop: 4 }}>Create your first dashboard to start tracking metrics.</div>
-        </div>
-      ) : selected && selected.widgets.length === 0 ? (
+      {/* Widgets */}
+      {selected && selected.widgets.length === 0 ? (
         <div className="empty-state" style={{ marginTop: 40 }}>
           <div className="empty-state-icon">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -450,7 +533,7 @@ const Dashboards: React.FC = () => {
             </svg>
           </div>
           <div className="empty-state-title">No widgets yet</div>
-          <div style={{ color: "var(--color-text-muted)", fontSize: 13, marginTop: 4 }}>Click "Add widget" to start building your dashboard.</div>
+          <div style={{ color: "var(--color-text-muted)", fontSize: 13, marginTop: 4 }}>Click "Add new widget" to start building your dashboard.</div>
         </div>
       ) : selected ? (
         <div className="dv-widget-grid">
@@ -468,7 +551,11 @@ const Dashboards: React.FC = () => {
             </div>
           ))}
         </div>
-      ) : null}
+      ) : (
+        <div className="empty-state" style={{ marginTop: 40 }}>
+          <div className="empty-state-title">Dashboard not found</div>
+        </div>
+      )}
 
       {toast && (
         <div className="profile-toast">

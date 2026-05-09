@@ -2,7 +2,6 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route, NavLink, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
-import Dashboard from "./pages/Dashboard";
 import LaunchList from "./pages/LaunchList";
 import LaunchDetail from "./pages/LaunchDetail";
 import Members from "./pages/Members";
@@ -42,13 +41,13 @@ const Sidebar: React.FC = () => {
       </div>
       <nav className="sidebar-nav">
         <div className="sidebar-section-label">Navigation</div>
-        <NavLink to="/" end className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}>
+        <NavLink to="/dashboards" className={({ isActive }) => `sidebar-link ${isActive || location.pathname.startsWith("/dashboards") ? "active" : ""}`}>
           <SidebarIcon>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
             </svg>
           </SidebarIcon>
-          Dashboard
+          Dashboards
         </NavLink>
         <NavLink to="/launches" className={({ isActive }) => `sidebar-link ${isActive || location.pathname.startsWith("/launches") ? "active" : ""}`}>
           <SidebarIcon>
@@ -57,14 +56,6 @@ const Sidebar: React.FC = () => {
             </svg>
           </SidebarIcon>
           Launches
-        </NavLink>
-        <NavLink to="/dashboards" className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}>
-          <SidebarIcon>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" />
-            </svg>
-          </SidebarIcon>
-          Dashboards
         </NavLink>
         <NavLink to="/trends" className={({ isActive }) => `sidebar-link ${isActive ? "active" : ""}`}>
           <SidebarIcon>
@@ -153,14 +144,16 @@ function AppRoutes() {
             <main className="layout-main">
               <div className="layout-content">
                 <Routes>
-                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/" element={<Navigate to="/dashboards" replace />} />
                   <Route path="/launches" element={<LaunchList />} />
                   <Route path="/launches/:id" element={<LaunchDetail />} />
                   <Route path="/launches/:id/items/:itemId" element={<TestDetail />} />
+                  <Route path="/launches/:id/items/:itemId/log" element={<TestDetail />} />
                   <Route path="/members" element={<Members />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/dashboards" element={<Dashboards />} />
+                  <Route path="/dashboards/:id" element={<Dashboards />} />
                   <Route path="/trends" element={<Trends />} />
                 </Routes>
               </div>
